@@ -1,0 +1,308 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - img [ref=e7]
+        - heading "CasaGestión" [level=1] [ref=e10]
+    - generic [ref=e11]:
+      - navigation [ref=e12]:
+        - generic [ref=e13]:
+          - button "Inicio" [ref=e14] [cursor=pointer]:
+            - img [ref=e15]
+            - text: Inicio
+          - button "Reservas" [ref=e18] [cursor=pointer]:
+            - img [ref=e19]
+            - text: Reservas
+          - button "Finanzas" [ref=e21] [cursor=pointer]:
+            - img [ref=e22]
+            - text: Finanzas
+          - button "Clientes" [ref=e24] [cursor=pointer]:
+            - img [ref=e25]
+            - text: Clientes
+      - main [ref=e30]:
+        - generic [ref=e32]:
+          - generic [ref=e33]:
+            - generic [ref=e34]:
+              - heading "Reservas" [level=2] [ref=e35]
+              - paragraph [ref=e36]: Administra disponibilidad y ocupación
+            - generic [ref=e37]:
+              - generic [ref=e38]:
+                - button "Vista Calendario" [ref=e39] [cursor=pointer]:
+                  - img [ref=e40]
+                - button "Vista Lista" [ref=e42] [cursor=pointer]:
+                  - img [ref=e43]
+              - button "Nueva Reserva" [ref=e44] [cursor=pointer]:
+                - img [ref=e45]
+                - text: Nueva Reserva
+          - generic [ref=e47]:
+            - generic [ref=e48]:
+              - button [ref=e49] [cursor=pointer]:
+                - img [ref=e50]
+              - heading "enero de 2026" [level=3] [ref=e52]
+              - button [ref=e53] [cursor=pointer]:
+                - img [ref=e54]
+            - generic [ref=e56]:
+              - generic [ref=e57]: Dom
+              - generic [ref=e58]: Lun
+              - generic [ref=e59]: Mar
+              - generic [ref=e60]: Mié
+              - generic [ref=e61]: Jue
+              - generic [ref=e62]: Vie
+              - generic [ref=e63]: Sáb
+            - generic [ref=e64]:
+              - button "1 3" [ref=e69] [cursor=pointer]:
+                - generic [ref=e70]: "1"
+                - generic [ref=e72]: "3"
+              - button "2 3" [ref=e73] [cursor=pointer]:
+                - generic [ref=e74]: "2"
+                - generic [ref=e76]: "3"
+              - button "3 3" [ref=e77] [cursor=pointer]:
+                - generic [ref=e78]: "3"
+                - generic [ref=e80]: "3"
+              - button "4 3" [ref=e81] [cursor=pointer]:
+                - generic [ref=e82]: "4"
+                - generic [ref=e84]: "3"
+              - button "5 3" [ref=e85] [cursor=pointer]:
+                - generic [ref=e86]: "5"
+                - generic [ref=e88]: "3"
+              - button "6 3" [ref=e89] [cursor=pointer]:
+                - generic [ref=e90]: "6"
+                - generic [ref=e92]: "3"
+              - button "7 3" [ref=e93] [cursor=pointer]:
+                - generic [ref=e94]: "7"
+                - generic [ref=e96]: "3"
+              - button "8 3" [ref=e97] [cursor=pointer]:
+                - generic [ref=e98]: "8"
+                - generic [ref=e100]: "3"
+              - button "9 3" [ref=e101] [cursor=pointer]:
+                - generic [ref=e102]: "9"
+                - generic [ref=e104]: "3"
+              - button "10 3" [ref=e105] [cursor=pointer]:
+                - generic [ref=e106]: "10"
+                - generic [ref=e108]: "3"
+              - button "11 3" [ref=e109] [cursor=pointer]:
+                - generic [ref=e110]: "11"
+                - generic [ref=e112]: "3"
+              - button "12 3" [ref=e113] [cursor=pointer]:
+                - generic [ref=e114]: "12"
+                - generic [ref=e116]: "3"
+              - button "13 3" [ref=e117] [cursor=pointer]:
+                - generic [ref=e118]: "13"
+                - generic [ref=e120]: "3"
+              - button "14 3" [ref=e121] [cursor=pointer]:
+                - generic [ref=e122]: "14"
+                - generic [ref=e124]: "3"
+              - button "15 3" [ref=e125] [cursor=pointer]:
+                - generic [ref=e126]: "15"
+                - generic [ref=e128]: "3"
+              - button "16 3" [ref=e129] [cursor=pointer]:
+                - generic [ref=e130]: "16"
+                - generic [ref=e132]: "3"
+              - button "17 3" [ref=e133] [cursor=pointer]:
+                - generic [ref=e134]: "17"
+                - generic [ref=e136]: "3"
+              - button "18 3" [ref=e137] [cursor=pointer]:
+                - generic [ref=e138]: "18"
+                - generic [ref=e140]: "3"
+              - button "19 3" [ref=e141] [cursor=pointer]:
+                - generic [ref=e142]: "19"
+                - generic [ref=e144]: "3"
+              - button "20 3" [ref=e145] [cursor=pointer]:
+                - generic [ref=e146]: "20"
+                - generic [ref=e148]: "3"
+              - button "21 3" [ref=e149] [cursor=pointer]:
+                - generic [ref=e150]: "21"
+                - generic [ref=e152]: "3"
+              - button "22 3" [ref=e153] [cursor=pointer]:
+                - generic [ref=e154]: "22"
+                - generic [ref=e156]: "3"
+              - button "23 3" [ref=e157] [cursor=pointer]:
+                - generic [ref=e158]: "23"
+                - generic [ref=e160]: "3"
+              - button "24 3" [ref=e161] [cursor=pointer]:
+                - generic [ref=e162]: "24"
+                - generic [ref=e164]: "3"
+              - button "25 3" [ref=e165] [cursor=pointer]:
+                - generic [ref=e166]: "25"
+                - generic [ref=e168]: "3"
+              - button "26 3" [ref=e169] [cursor=pointer]:
+                - generic [ref=e170]: "26"
+                - generic [ref=e172]: "3"
+              - button "27 3" [ref=e173] [cursor=pointer]:
+                - generic [ref=e174]: "27"
+                - generic [ref=e176]: "3"
+              - button "28 3" [ref=e177] [cursor=pointer]:
+                - generic [ref=e178]: "28"
+                - generic [ref=e180]: "3"
+              - button "29 3" [ref=e181] [cursor=pointer]:
+                - generic [ref=e182]: "29"
+                - generic [ref=e184]: "3"
+              - button "30 3" [ref=e185] [cursor=pointer]:
+                - generic [ref=e186]: "30"
+                - generic [ref=e188]: "3"
+              - button "31 3" [ref=e189] [cursor=pointer]:
+                - generic [ref=e190]: "31"
+                - generic [ref=e192]: "3"
+          - generic [ref=e195]:
+            - generic [ref=e196]:
+              - heading "Nueva Reserva" [level=3] [ref=e197]
+              - button [ref=e198] [cursor=pointer]:
+                - img [ref=e199]
+            - generic [ref=e202]:
+              - generic [ref=e203]:
+                - generic [ref=e204]:
+                  - generic [ref=e205]: Cliente
+                  - combobox [ref=e206]:
+                    - option "Seleccionar Cliente"
+                    - option "Juan Pérez" [selected]
+                    - option "Maria Lopez"
+                    - option "Carlos Ruiz"
+                - generic [ref=e207]:
+                  - generic [ref=e208]: Estado
+                  - combobox [ref=e209]:
+                    - option "Información" [selected]
+                    - option "Confirmada"
+                    - option "Completada"
+                    - option "Cancelada"
+              - generic [ref=e210]:
+                - generic [ref=e211]:
+                  - generic [ref=e212]: Seleccionar Fechas
+                  - generic [ref=e213]:
+                    - button [ref=e214] [cursor=pointer]:
+                      - img [ref=e215]
+                    - generic [ref=e217]: enero de 2026
+                    - button [ref=e218] [cursor=pointer]:
+                      - img [ref=e219]
+                - generic [ref=e221]:
+                  - generic [ref=e222]:
+                    - generic [ref=e223]: Entrada
+                    - text: 25 ene
+                  - img [ref=e225]
+                  - generic [ref=e227]:
+                    - generic [ref=e228]: Salida
+                    - text: "-"
+                - generic [ref=e229]:
+                  - generic [ref=e230]: D
+                  - generic [ref=e231]: L
+                  - generic [ref=e232]: M
+                  - generic [ref=e233]: M
+                  - generic [ref=e234]: J
+                  - generic [ref=e235]: V
+                  - generic [ref=e236]: S
+                - generic [ref=e237]:
+                  - button "1 3" [ref=e242] [cursor=pointer]:
+                    - generic [ref=e243]: "1"
+                    - generic [ref=e245]: "3"
+                  - button "2 3" [ref=e246] [cursor=pointer]:
+                    - generic [ref=e247]: "2"
+                    - generic [ref=e249]: "3"
+                  - button "3 3" [ref=e250] [cursor=pointer]:
+                    - generic [ref=e251]: "3"
+                    - generic [ref=e253]: "3"
+                  - button "4 3" [ref=e254] [cursor=pointer]:
+                    - generic [ref=e255]: "4"
+                    - generic [ref=e257]: "3"
+                  - button "5 3" [ref=e258] [cursor=pointer]:
+                    - generic [ref=e259]: "5"
+                    - generic [ref=e261]: "3"
+                  - button "6 3" [ref=e262] [cursor=pointer]:
+                    - generic [ref=e263]: "6"
+                    - generic [ref=e265]: "3"
+                  - button "7 3" [ref=e266] [cursor=pointer]:
+                    - generic [ref=e267]: "7"
+                    - generic [ref=e269]: "3"
+                  - button "8 3" [ref=e270] [cursor=pointer]:
+                    - generic [ref=e271]: "8"
+                    - generic [ref=e273]: "3"
+                  - button "9 3" [ref=e274] [cursor=pointer]:
+                    - generic [ref=e275]: "9"
+                    - generic [ref=e277]: "3"
+                  - button "10 3" [ref=e278] [cursor=pointer]:
+                    - generic [ref=e279]: "10"
+                    - generic [ref=e281]: "3"
+                  - button "11 3" [ref=e282] [cursor=pointer]:
+                    - generic [ref=e283]: "11"
+                    - generic [ref=e285]: "3"
+                  - button "12 3" [ref=e286] [cursor=pointer]:
+                    - generic [ref=e287]: "12"
+                    - generic [ref=e289]: "3"
+                  - button "13 3" [ref=e290] [cursor=pointer]:
+                    - generic [ref=e291]: "13"
+                    - generic [ref=e293]: "3"
+                  - button "14 3" [ref=e294] [cursor=pointer]:
+                    - generic [ref=e295]: "14"
+                    - generic [ref=e297]: "3"
+                  - button "15 3" [ref=e298] [cursor=pointer]:
+                    - generic [ref=e299]: "15"
+                    - generic [ref=e301]: "3"
+                  - button "16 3" [ref=e302] [cursor=pointer]:
+                    - generic [ref=e303]: "16"
+                    - generic [ref=e305]: "3"
+                  - button "17 3" [ref=e306] [cursor=pointer]:
+                    - generic [ref=e307]: "17"
+                    - generic [ref=e309]: "3"
+                  - button "18 3" [ref=e310] [cursor=pointer]:
+                    - generic [ref=e311]: "18"
+                    - generic [ref=e313]: "3"
+                  - button "19 3" [ref=e314] [cursor=pointer]:
+                    - generic [ref=e315]: "19"
+                    - generic [ref=e317]: "3"
+                  - button "20 3" [ref=e318] [cursor=pointer]:
+                    - generic [ref=e319]: "20"
+                    - generic [ref=e321]: "3"
+                  - button "21 3" [ref=e322] [cursor=pointer]:
+                    - generic [ref=e323]: "21"
+                    - generic [ref=e325]: "3"
+                  - button "22 3" [ref=e326] [cursor=pointer]:
+                    - generic [ref=e327]: "22"
+                    - generic [ref=e329]: "3"
+                  - button "23 3" [ref=e330] [cursor=pointer]:
+                    - generic [ref=e331]: "23"
+                    - generic [ref=e333]: "3"
+                  - button "24 3" [ref=e334] [cursor=pointer]:
+                    - generic [ref=e335]: "24"
+                    - generic [ref=e337]: "3"
+                  - button "25" [ref=e338] [cursor=pointer]:
+                    - generic [ref=e339]: "25"
+                  - button "26 3" [ref=e340] [cursor=pointer]:
+                    - generic [ref=e341]: "26"
+                    - generic [ref=e343]: "3"
+                  - button "27 3" [ref=e344] [cursor=pointer]:
+                    - generic [ref=e345]: "27"
+                    - generic [ref=e347]: "3"
+                  - button "28 3" [ref=e348] [cursor=pointer]:
+                    - generic [ref=e349]: "28"
+                    - generic [ref=e351]: "3"
+                  - button "29 3" [ref=e352] [cursor=pointer]:
+                    - generic [ref=e353]: "29"
+                    - generic [ref=e355]: "3"
+                  - button "30 3" [ref=e356] [cursor=pointer]:
+                    - generic [ref=e357]: "30"
+                    - generic [ref=e359]: "3"
+                  - button "31 3" [ref=e360] [cursor=pointer]:
+                    - generic [ref=e361]: "31"
+                    - generic [ref=e363]: "3"
+              - generic [ref=e364]:
+                - generic [ref=e365]: Cantidad de Cabañas
+                - generic [ref=e366]:
+                  - slider [ref=e367] [cursor=pointer]: "1"
+                  - generic [ref=e368]: "1"
+                - paragraph [ref=e369]: "Total disponible: 3"
+              - generic [ref=e370]:
+                - generic [ref=e371]:
+                  - generic [ref=e372]: Adultos & Niños > 5
+                  - spinbutton [ref=e373]: "2"
+                - generic [ref=e374]:
+                  - generic [ref=e375]: Niños < 5 años
+                  - spinbutton [ref=e376]: "0"
+              - generic [ref=e377]:
+                - generic [ref=e378]: Total a cobrar
+                - generic [ref=e379]:
+                  - generic [ref=e380]: $
+                  - spinbutton [ref=e381]: "250.00"
+              - button "Confirmar Reserva" [active] [ref=e382] [cursor=pointer]
+  - generic [ref=e383]: $0
+```

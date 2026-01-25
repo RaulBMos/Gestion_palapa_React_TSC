@@ -1,0 +1,114 @@
+import React, { useState } from 'react';
+import { Client } from '../types';
+import { Mail, Phone, User, Plus } from 'lucide-react';, Pencil, Trash2, X
+
+interface ClientsProps {
+  clients: Client[];
+interface ClientsProps {
+  clients: Client[];
+  addClient: (c: Client) => void;
+  editClient: (c: Client) => void;
+  deleteClient: (id: string) => void;
+  const [editingId, setEditingId] = useState<string | null>(null);
+}
+
+export const Clients: React.FC<ClientsProps> = ({ clients, addClient }) => {
+  const [showForm, setShowForm] = useState(false);
+  const [newClient, setNewClient] = useState<Partial<Client>>({});
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newClient.name && newClient.email) {
+      addClient({
+        id: Date.now().toString(),
+        name: newClient.name,
+        email: newClient.email,
+        phone: newClient.phone || '',
+        notes: newClient.notes || ''
+      });
+      setShowForm(false);
+      setNewClient({});
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-slate-900">Directorio de Clientes</h2>
+        <button 
+          onClick={() => setShowForm(true)}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-xl shadow-lg shadow-indigo-200 transition-all"
+        >
+          <Plus className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {clients.map(client => (
+          <div key={client.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-start gap-4">
+              <div className="bg-indigo-50 p-3 rounded-full">
+                <User className="w-6 h-6 text-indigo-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg">{client.name}</h3>
+                <div className="space-y-1 mt-2">
+                  <div className="flex items-center text-slate-500 text-sm">
+                    <Mail className="w-4 h-4 mr-2" />
+                    {client.email}
+                  </div>
+                  <div className="flex items-center text-slate-500 text-sm">
+                    <Phone className="w-4 h-4 mr-2" />
+                    {client.phone}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {showForm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-slate-900 mb-4">Nuevo Cliente</h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <input 
+                placeholder="Nombre completo" 
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl"
+                value={newClient.name || ''}
+                onChange={e => setNewClient({...newClient, name: e.target.value})}
+                required
+              />
+              <input 
+                placeholder="Email" 
+                type="email"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl"
+                value={newClient.email || ''}
+                onChange={e => setNewClient({...newClient, email: e.target.value})}
+                required
+              />
+              <input 
+                placeholder="Teléfono" 
+                type="tel"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl"
+                value={newClient.phone || ''}
+                onChange={e => setNewClient({...newClient, phone: e.target.value})}
+              />
+               <textarea 
+                placeholder="Notas" 
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl h-24"
+                value={newClient.notes || ''}
+                onChange={e => setNewClient({...newClient, notes: e.target.value})}
+              />
+              <div className="flex gap-3">
+                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 text-slate-500">Cancelar</button>
+                 <button type="submit" className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold">Guardar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
