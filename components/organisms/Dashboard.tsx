@@ -1,9 +1,9 @@
-import React, { Suspense, lazy } from 'react';
+import React, { lazy } from 'react';
 import { ArrowUpRight, ArrowDownRight, TrendingUp, Users, CalendarDays, BedDouble, Activity } from 'lucide-react';
-import { Transaction, Reservation, TransactionType } from '../../types';
+import { Transaction, Reservation } from '../../src/types';
 import { useDataState } from '../../hooks/useData';
 import { useDashboardLogic } from '../../hooks/useDashboardLogic';
-import { SuspenseWrapper, LoadingFallback } from '../templates/SuspenseWrapper';
+import { SuspenseWrapper } from '../templates/SuspenseWrapper';
 import { BarChartSkeleton, PieChartSkeleton } from '../molecules/ChartSkeletons';
 import { AIPanelSkeleton } from '../molecules/AIPanelSkeleton';
 
@@ -17,8 +17,6 @@ interface DashboardProps {
   reservations?: Reservation[];
   totalAvailableCabins?: number;
 }
-
-const COLORS = ['#0ea5e9', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
 export const Dashboard: React.FC<DashboardProps> = (props) => {
   // ✅ Obtener datos del contexto (o usar props si se proporcionan para retrocompatibilidad)

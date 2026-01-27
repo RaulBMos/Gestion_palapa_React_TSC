@@ -1,6 +1,6 @@
 import React from 'react';
 import { Home, Calendar, DollarSign, Users, Menu } from 'lucide-react';
-import { ViewState } from '../types';
+import { ViewState } from '../../src/types';
 
 interface LayoutProps {
   currentView: ViewState;

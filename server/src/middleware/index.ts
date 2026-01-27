@@ -12,7 +12,7 @@ export const createRateLimiter = (windowMs: number, max: number) => {
     message: 'Demasiadas solicitudes. Intenta de nuevo más tarde.',
     standardHeaders: true, // Return rate limit info in the RateLimit-* headers
     legacyHeaders: false, // Disable the X-RateLimit-* headers
-    skip: (req: Request) => {
+    skip: (_req: Request) => {
       // No aplicar rate limiting en desarrollo
       return config.isDevelopment;
     },
@@ -23,7 +23,7 @@ export const createRateLimiter = (windowMs: number, max: number) => {
  * Middleware para validar que la API Key esté configurada
  */
 export const validateApiKey = (
-  req: Request,
+  _req: Request,
   res: Response,
   next: NextFunction
 ): void => {
@@ -62,14 +62,14 @@ export const requestLogger = (
  */
 export const errorHandler = (
   error: any,
-  req: Request,
+  _req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void => {
   console.error('Error:', {
     timestamp: new Date().toISOString(),
-    path: req.path,
-    method: req.method,
+    path: _req.path,
+    method: _req.method,
     error: error.message,
     stack: config.isDevelopment ? error.stack : undefined,
   });

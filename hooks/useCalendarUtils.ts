@@ -1,9 +1,5 @@
-import { useState, useCallback } from 'react';
-import { useState, useCallback } from 'react';
-import { useState, useCallback } from 'react';
-import { useState, useCallback } from 'react';
-import { useState, useCallback } from 'react';
-import { DateCallback, OccupancyData, CalendarDayInfo, CalendarNewReservation, Reservation, ReservationStatus } from '../types/calendar';
+import { useCallback } from 'react';
+import { OccupancyData, CalendarDayInfo, Reservation, ReservationStatus, NewReservation } from '../src/types';
 
 interface CalendarUtilsHookReturn {
   getDateString: (date: Date) => string;
@@ -15,24 +11,7 @@ interface CalendarUtilsHookReturn {
     dateStr: string,
     mode: 'main' | 'picker',
     selectedDate: string | null,
-    newRes: Partial<CalendarNewReservation> | null,
-    editingId: string | undefined,
-    getOccupancy: (dateStr: string, excludeReservationId?: string) => OccupancyData,
-    totalAvailableCabins: number
-  ) => CalendarDayInfo;
-}
-
-interface CalendarUtilsHookReturn {
-  getDateString: (date: Date) => string;
-  formatDateForDisplay: (dateStr: string | undefined) => string;
-  getDaysInMonth: (date: Date) => (Date | null)[];
-  getOccupancy: (dateStr: string, excludeReservationId?: string) => OccupancyData;
-  calculateDayInfo: (
-    date: Date,
-    dateStr: string,
-    mode: 'main' | 'picker',
-    selectedDate: string | null,
-    newRes: Partial<CalendarNewReservation> | null,
+    newRes: Partial<NewReservation>,
     editingId: string | undefined,
     getOccupancy: (dateStr: string, excludeReservationId?: string) => OccupancyData,
     totalAvailableCabins: number
@@ -45,15 +24,40 @@ interface CalendarUtilsHookReturn {
  */
 export const useCalendarUtils = (
   reservations: Reservation[],
-  totalAvailableCabins: number
+  _totalAvailableCabins: number
 ): CalendarUtilsHookReturn => {
+  const getDateString = useCallback((date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const formatDateForDisplay = useCallback((dateStr: string | undefined) => {
+    if (!dateStr) return '-';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    if (y === undefined || m === undefined || d === undefined) return '-';
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+  }, []);
+
+  const getDaysInMonth = useCallback((date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDayOfWeek = new Date(year, month, 1).getDay();
+    
+    const days = [];
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      days.push(null);
+    }
     for (let i = 1; i <= daysInMonth; i++) {
       days.push(new Date(year, month, i));
     }
     return days;
   }, []);
 
-   const getOccupancy = useCallback((dateStr: string, excludeReservationId?: string): OccupancyData => {
+  const getOccupancy = useCallback((dateStr: string, excludeReservationId?: string): OccupancyData => {
     const activeReservations = reservations.filter(r => 
       r.status === ReservationStatus.CONFIRMED &&
       r.id !== excludeReservationId && 
@@ -70,7 +74,7 @@ export const useCalendarUtils = (
     dateStr: string,
     mode: 'main' | 'picker',
     selectedDate: string | null,
-    newRes: Partial<any>,
+    newRes: Partial<NewReservation>,
     editingId: string | undefined,
     getOccupancy: (dateStr: string, excludeReservationId?: string) => OccupancyData,
     totalAvailableCabins: number

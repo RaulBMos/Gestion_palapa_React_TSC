@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Transaction, Reservation } from '../types.js';
+
 
 /**
  * Esquema para validación de transacciones

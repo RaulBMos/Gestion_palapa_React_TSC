@@ -18,4 +18,4 @@ export { Layout } from './templates/Layout';
 export { SuspenseWrapper } from './templates/SuspenseWrapper';
 
 // TYPES
-export * from '../types';
+export * from '../src/types';

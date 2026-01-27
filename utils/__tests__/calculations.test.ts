@@ -12,7 +12,7 @@ import {
   calculateRevPAR,
   calculateAllMetrics
 } from '../calculations';
-import { Transaction, TransactionType, Reservation, ReservationStatus, PaymentMethod } from '../../types';
+import { Transaction, TransactionType, Reservation, ReservationStatus, PaymentMethod } from '../../src/types';
 
 describe('Financial Calculation Utils', () => {
   
@@ -117,10 +117,12 @@ describe('Financial Calculation Utils', () => {
       expect(result2).toBe(0);
     });
 
-/const confirmedReservations = mockReservations.filter(r =>/a const confirmedReservations = mockReservations.filter(r =>/
+      it('should handle empty confirmed reservations', () => {
+      const confirmedReservations = mockReservations.filter(r => 
+        r.status === ReservationStatus.CONFIRMED
       );
       
-      const result = calculateMonthlyOccupancy(infoReservations, 3);
+      const result = calculateMonthlyOccupancy(confirmedReservations, 3);
       expect(result).toBe(0);
     });
 

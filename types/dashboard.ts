@@ -1,4 +1,4 @@
-import { Transaction, Reservation } from '../types';
+
 
 // Interfaces tipadas para datos del dashboard
 export interface MonthlyData {

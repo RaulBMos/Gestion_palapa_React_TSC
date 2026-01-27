@@ -1,4 +1,4 @@
-import { Transaction, Reservation } from '../types';
+import { Transaction, Reservation } from '../src/types';
 
 // Interfaces tipadas para respuestas de API de Gemini
 export interface GeminiAnalysisRequest {

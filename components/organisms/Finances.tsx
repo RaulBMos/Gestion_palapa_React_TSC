@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Transaction, TransactionType, PaymentMethod } from '../../types';
+import { Transaction, TransactionType, PaymentMethod } from '../../src/types';
 import { TrendingUp, TrendingDown, Plus, CreditCard, Banknote, Pencil, Trash2, X, Calendar, Tag } from 'lucide-react';
 import { useData } from '../../hooks/useData';
 
@@ -16,7 +16,7 @@ export const Finances: React.FC<FinancesProps> = (props) => {
   
   const transactions = props.transactions ?? contextData.transactions;
   const addTransaction = props.addTransaction ?? contextData.addTransaction;
-  const editTransaction = props.editTransaction ?? contextData.editTransaction;
+  const editTransaction = props.editTransaction ?? contextData.updateTransaction;
   const deleteTransaction = props.deleteTransaction ?? contextData.deleteTransaction;
   const [activeTab, setActiveTab] = useState<TransactionType>(TransactionType.INCOME);
   const [showForm, setShowForm] = useState(false);
@@ -25,7 +25,7 @@ export const Finances: React.FC<FinancesProps> = (props) => {
   const [formData, setFormData] = useState<Partial<Transaction>>({
     type: TransactionType.INCOME,
     paymentMethod: PaymentMethod.CASH,
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toISOString().split('T')[0] || ''
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -39,7 +39,7 @@ export const Finances: React.FC<FinancesProps> = (props) => {
         description: formData.description,
         date: formData.date || new Date().toISOString(),
         paymentMethod: formData.paymentMethod || PaymentMethod.CASH,
-        reservationId: formData.reservationId
+        ...(formData.reservationId && { reservationId: formData.reservationId })
       };
       
       if (editingId) {
@@ -53,7 +53,7 @@ export const Finances: React.FC<FinancesProps> = (props) => {
       setFormData({ 
         type: activeTab, 
         paymentMethod: PaymentMethod.CASH,
-        date: new Date().toISOString().split('T')[0]
+        date: new Date().toISOString().split('T')[0] || ''
       });
     }
   };
@@ -180,7 +180,7 @@ export const Finances: React.FC<FinancesProps> = (props) => {
                   setFormData({ 
                     type: activeTab, 
                     paymentMethod: PaymentMethod.CASH,
-                    date: new Date().toISOString().split('T')[0]
+                    date: new Date().toISOString().split('T')[0] || ''
                   });
                 }}
                 className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200"
@@ -266,7 +266,7 @@ export const Finances: React.FC<FinancesProps> = (props) => {
                     setFormData({ 
                       type: activeTab, 
                       paymentMethod: PaymentMethod.CASH,
-                      date: new Date().toISOString().split('T')[0]
+                      date: new Date().toISOString().split('T')[0] || ''
                     });
                   }}
                   className="flex-1 py-3 text-slate-600 font-medium hover:bg-slate-50 rounded-xl"

@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
-import { Transaction, Reservation, TransactionType } from '../types';
-import { analyzeBusinessData } from '../services/geminiService';
-import { generateLocalAnalysis } from '../utils/localAnalysis';
+import { Transaction, Reservation, MonthlyData, ExpenseCategory } from '../src/types';
+import { analyzeBusinessData } from '../src/services/geminiService';
+import { logError, logInfo, logWarning } from '../utils/logger';
 import { 
   calculateMonthlyOccupancy, 
   calculateFinancialBalance, 
@@ -9,7 +9,11 @@ import {
   calculateAverageStayDuration, 
   calculateRevPAR 
 } from '../utils/calculations';
-import { MonthlyData, ExpenseCategory, FinancialData } from '../types/dashboard';
+import { withRetry } from '../src/utils/retry';
+import { 
+  mapTransactionsToMonthlyData, 
+  mapTransactionsToExpenseCategories 
+} from '../src/utils/transformers';
 
 interface DashboardLogicHookReturn {
   // Estado
@@ -19,6 +23,9 @@ interface DashboardLogicHookReturn {
   retryAttempt: number;
   isAnalysisDisabled: boolean;
   countdownSeconds: number;
+  showFallback: boolean;
+  failureCount: number;
+  isSystemDegraded: boolean;
   
   // Datos calculados
   financialBalance: {
@@ -42,6 +49,8 @@ interface DashboardLogicHookReturn {
   handleAiAnalysis: () => Promise<void>;
   handleCancelAiAnalysis: () => void;
   clearAiError: () => void;
+  handleManualInput: (manualText: string) => Promise<void>;
+  handleRetryAnalysis: () => void;
 }
 
 /**
@@ -62,6 +71,12 @@ export const useDashboardLogic = (
   // Estado para debounce y control de cuota
   const [isAnalysisDisabled, setIsAnalysisDisabled] = useState<boolean>(false);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(0);
+  
+  // Estado para fallback
+  const [showFallback, setShowFallback] = useState<boolean>(false);
+  const [failureCount, setFailureCount] = useState<number>(0);
+  const [isSystemDegraded, setIsSystemDegraded] = useState<boolean>(false);
+  const [degradedUntil, setDegradedUntil] = useState<number>(0);
 
   // Calcular KPIs
   const kpiData = useMemo(() => {
@@ -85,46 +100,12 @@ export const useDashboardLogic = (
 
   // Preparar datos para gráficos - Resumenes mensuales
   const dataByMonth = useMemo((): MonthlyData[] => {
-    const monthlyData: Record<string, { ingresos: number; gastos: number }> = {};
-    
-    transactions.forEach((transaction) => {
-      const monthKey = new Date(transaction.date).toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: 'short',
-      });
-      
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = { ingresos: 0, gastos: 0 };
-      }
-      
-      if (transaction.type === TransactionType.INCOME) {
-        monthlyData[monthKey].ingresos += transaction.amount;
-      } else {
-        monthlyData[monthKey].gastos += transaction.amount;
-      }
-    });
-
-    return Object.entries(monthlyData)
-      .map(([month, data]) => ({ name: month, ...data }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .slice(-6);
+    return mapTransactionsToMonthlyData(transactions);
   }, [transactions]);
 
   // Preparar datos para gráficos - Categorías de gastos
   const expenseCategories = useMemo((): ExpenseCategory[] => {
-    const categoryTotals: Record<string, number> = {};
-    
-    transactions
-      .filter(transaction => transaction.type === TransactionType.EXPENSE)
-      .forEach(transaction => {
-        const category = transaction.category || 'Sin categorizar';
-        categoryTotals[category] = (categoryTotals[category] || 0) + transaction.amount;
-      });
-
-    return Object.entries(categoryTotals)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
+    return mapTransactionsToExpenseCategories(transactions);
   }, [transactions]);
 
   // Manejador de countdown para debounce
@@ -144,85 +125,237 @@ export const useDashboardLogic = (
     }, 1000);
   }, []);
 
-  // Función para análisis con IA
-  const handleAiAnalysis = useCallback(async () => {
-    if (isAnalysisDisabled || loadingAi) return;
-    
-    setLoadingAi(true);
-    setAiError(null);
+   // Función para verificar si el sistema está degradado
+   const checkSystemDegraded = useCallback(() => {
+     if (degradedUntil > 0) {
+       const now = Date.now();
+       if (now < degradedUntil) {
+         return true; // Sistema aún degradado
+       } else {
+         // Tiempo de degradación expirado, resetear estado
+         setIsSystemDegraded(false);
+         setDegradedUntil(0);
+         setFailureCount(0);
+         logInfo('Sistema salió del modo degradado', {
+           component: 'useDashboardLogic',
+           action: 'checkSystemDegraded',
+           degradedUntil: degradedUntil,
+         });
+       }
+     }
+     return false;
+   }, [degradedUntil]);
 
-    try {
-      const result = await analyzeBusinessData(transactions, reservations, {
-        maxRetries: 3,
-        timeoutMs: 20000
-      });
-      
-      if (result.success && result.data) {
-        setAiAnalysis(result.data);
-        setRetryAttempt(0);
-        // Iniciar countdown después de análisis exitoso
-        startCountdown();
-      } else {
-        throw new Error(result.error || 'No se recibió respuesta del servicio de IA');
-      }
-      
-      if (result.success && result.data) {
-        setAiAnalysis(result.data);
-        setRetryAttempt(0);
-        // Iniciar countdown después de análisis exitoso
-        startCountdown();
-      } else {
-        throw new Error(result.error || 'No se recibió respuesta del servicio de IA');
-      }
-    } catch (error) {
-      const newRetryAttempt = retryAttempt + 1;
-      setRetryAttempt(newRetryAttempt);
+   // Función para activar modo degradado
+   const activateDegradedMode = useCallback(() => {
+     const degradedTime = Date.now() + (5 * 60 * 1000); // 5 minutos
+     setIsSystemDegraded(true);
+     setDegradedUntil(degradedTime);
+     setShowFallback(true);
+     
+     logWarning('Sistema entró en modo degradado por 5 minutos', {
+       component: 'useDashboardLogic',
+       action: 'activateDegradedMode',
+       failureCount,
+       degradedUntil: degradedTime,
+     });
+   }, [failureCount]);
 
-      if (newRetryAttempt >= 3) {
-        // Después de 3 intentos fallidos, generar análisis local
-        const localAnalysis = generateLocalAnalysis(reservations, transactions, totalAvailableCabins);
-        setAiAnalysis(localAnalysis);
-        setAiError(null);
-        setRetryAttempt(0);
-      } else {
-        setAiError(error instanceof Error ? error.message : 'Error desconocido');
-      }
-    } finally {
-      setLoadingAi(false);
-    }
-  }, [transactions, reservations, totalAvailableCabins, retryAttempt, loadingAi, isAnalysisDisabled, startCountdown]);
+   // Función para análisis con IA con exponential backoff
+   const handleAiAnalysis = useCallback(async () => {
+     if (isAnalysisDisabled || loadingAi) return;
+     
+     // Verificar si el sistema está degradado
+     if (checkSystemDegraded()) {
+       logInfo('Sistema degradado, usando fallback automáticamente', {
+         component: 'useDashboardLogic',
+         action: 'handleAiAnalysis',
+         isSystemDegraded: true,
+         degradedUntil,
+       });
+       setShowFallback(true);
+       return;
+     }
+     
+     logInfo('Usuario inició análisis de IA', {
+       component: 'useDashboardLogic',
+       action: 'handleAiAnalysis',
+       transactionsCount: transactions.length,
+       reservationsCount: reservations.length,
+       currentRetryAttempt: retryAttempt,
+       failureCount,
+       isSystemDegraded,
+     });
 
-  // Función para cancelar análisis
+     setLoadingAi(true);
+     setAiError(null);
+
+     try {
+       const retryResult = await withRetry(
+         () => analyzeBusinessData(transactions, reservations, {
+           maxRetries: 1, // Reducimos los reintentos individuales porque ya usamos withRetry
+           timeoutMs: 20000
+         }),
+         {
+           maxAttempts: 3,
+           baseDelay: 1000,
+           maxDelay: 10000,
+           backoffFactor: 2,
+           onRetry: (attempt, error, delay) => {
+             logInfo(`Reintentando análisis de IA (intentos ${attempt}/3)`, {
+               component: 'useDashboardLogic',
+               action: 'handleAiAnalysis',
+               retryAttempt: attempt,
+               error: error.message,
+               delay,
+             });
+           }
+         }
+       );
+       
+       if (retryResult.success && retryResult.data?.success && retryResult.data.data) {
+         setAiAnalysis(retryResult.data.data);
+         setRetryAttempt(0);
+         setFailureCount(0); // Resetear contador de fallos en éxito
+         
+         logInfo('Análisis de IA completado exitosamente', {
+           component: 'useDashboardLogic',
+           action: 'handleAiAnalysis',
+           success: true,
+           sanitized: retryResult.data.sanitized,
+           analysisLength: retryResult.data.data.length,
+           attempts: retryResult.attempts,
+           totalDelay: retryResult.totalDelay,
+           failureCount: 0, // Reset
+         });
+         
+         // Iniciar countdown después de análisis exitoso
+         startCountdown();
+       } else {
+         throw new Error(retryResult.data?.error || retryResult.error?.message || 'No se recibió respuesta del servicio de IA');
+       }
+     } catch (error) {
+       const newFailureCount = failureCount + 1;
+       setFailureCount(newFailureCount);
+
+       logError(error instanceof Error ? error : new Error('Unknown error in AI analysis'), {
+         component: 'useDashboardLogic',
+         action: 'handleAiAnalysis',
+         failureCount: newFailureCount,
+         maxFailures: 3,
+         willActivateDegradedMode: newFailureCount >= 3,
+       });
+
+       if (newFailureCount >= 3) {
+         // Activar modo degradado después de 3 fallos consecutivos
+         activateDegradedMode();
+         setAiError(error instanceof Error ? error.message : 'Error desconocido');
+       } else {
+         setRetryAttempt(retryAttempt + 1);
+         setAiError(error instanceof Error ? error.message : 'Error desconocido');
+       }
+     } finally {
+       setLoadingAi(false);
+     }
+   }, [transactions, reservations, totalAvailableCabins, retryAttempt, loadingAi, isAnalysisDisabled, startCountdown, failureCount, checkSystemDegraded, activateDegradedMode]);
+
+   // Función para cancelar análisis
   const handleCancelAiAnalysis = useCallback(() => {
+    logInfo('Usuario canceló análisis de IA', {
+      component: 'useDashboardLogic',
+      action: 'handleCancelAiAnalysis',
+      wasLoading: loadingAi,
+    });
+
     setLoadingAi(false);
     setAiError('Análisis cancelado por el usuario');
-  }, []);
+  }, [loadingAi]);
 
-  // Función para limpiar error
-  const clearAiError = useCallback(() => {
-    setAiError(null);
-    setAiAnalysis(null);
-    setRetryAttempt(0);
-  }, []);
+   // Función para limpiar error
+   const clearAiError = useCallback(() => {
+     logInfo('Usuario limpió error de análisis', {
+       component: 'useDashboardLogic',
+       action: 'clearAiError',
+       hadError: !!aiError,
+       hadAnalysis: !!aiAnalysis,
+       retryAttempt,
+       failureCount,
+       isSystemDegraded,
+     });
 
-  return {
-    // Estado
-    aiAnalysis,
-    loadingAi,
-    aiError,
-    retryAttempt,
-    isAnalysisDisabled,
-    countdownSeconds,
-    
-    // Datos calculados
-    financialBalance,
-    kpiData,
-    dataByMonth,
-    expenseCategories,
-    
-    // Acciones
-    handleAiAnalysis,
-    handleCancelAiAnalysis,
-    clearAiError,
-  };
+     setAiError(null);
+     setAiAnalysis(null);
+     setRetryAttempt(0);
+     setFailureCount(0);
+     setShowFallback(false);
+     setIsSystemDegraded(false);
+     setDegradedUntil(0);
+   }, [aiError, aiAnalysis, retryAttempt, failureCount, isSystemDegraded]);
+
+   // Función para manejar entrada manual
+   const handleManualInput = useCallback(async (manualText: string) => {
+     logInfo('Usuario proporcionó análisis manual', {
+       component: 'useDashboardLogic',
+       action: 'handleManualInput',
+       textLength: manualText.length,
+     });
+
+     setAiAnalysis(manualText);
+     setAiError(null);
+     setRetryAttempt(0);
+     setFailureCount(0);
+     setShowFallback(false);
+     setIsSystemDegraded(false);
+     setDegradedUntil(0);
+     
+     // Iniciar countdown después de análisis manual exitoso
+     startCountdown();
+   }, [startCountdown]);
+
+   // Función para reintentar análisis
+   const handleRetryAnalysis = useCallback(() => {
+     logInfo('Usuario solicitó reintentar análisis', {
+       component: 'useDashboardLogic',
+       action: 'handleRetryAnalysis',
+       currentRetryAttempt: retryAttempt,
+       failureCount,
+       isSystemDegraded,
+     });
+
+     setShowFallback(false);
+     setAiError(null);
+     setRetryAttempt(0);
+     setFailureCount(0);
+     setIsSystemDegraded(false);
+     setDegradedUntil(0);
+     
+     // Iniciar análisis automáticamente
+     handleAiAnalysis();
+   }, [retryAttempt, failureCount, isSystemDegraded, handleAiAnalysis]);
+
+    return {
+      // Estado
+      aiAnalysis,
+      loadingAi,
+      aiError,
+      retryAttempt,
+      isAnalysisDisabled,
+      countdownSeconds,
+      showFallback,
+      failureCount,
+      isSystemDegraded,
+      
+      // Datos calculados
+      financialBalance,
+      kpiData,
+      dataByMonth,
+      expenseCategories,
+      
+      // Acciones
+      handleAiAnalysis,
+      handleCancelAiAnalysis,
+      clearAiError,
+      handleManualInput,
+      handleRetryAnalysis,
+    };
 };

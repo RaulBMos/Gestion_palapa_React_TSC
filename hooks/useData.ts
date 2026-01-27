@@ -35,8 +35,8 @@ export function useData(): DataContextType {
  * Hook para acceder solo a los clientes
  */
 export function useClients() {
-  const { clients, addClient, editClient, deleteClient } = useData();
-  return { clients, addClient, editClient, deleteClient };
+  const { clients, addClient, updateClient, deleteClient } = useData();
+  return { clients, addClient, editClient: updateClient, deleteClient };
 }
 
 /**
@@ -47,7 +47,7 @@ export function useReservations() {
     reservations,
     totalCabins,
     addReservation,
-    editReservation,
+    updateReservation,
     updateReservationStatus,
     archiveReservation,
   } = useData();
@@ -55,7 +55,7 @@ export function useReservations() {
     reservations,
     totalCabins,
     addReservation,
-    editReservation,
+    editReservation: updateReservation,
     updateReservationStatus,
     archiveReservation,
   };
@@ -65,9 +65,9 @@ export function useReservations() {
  * Hook para acceder solo a las transacciones
  */
 export function useTransactions() {
-  const { transactions, addTransaction, editTransaction, deleteTransaction } =
+  const { transactions, addTransaction, updateTransaction, deleteTransaction } =
     useData();
-  return { transactions, addTransaction, editTransaction, deleteTransaction };
+  return { transactions, addTransaction, editTransaction: updateTransaction, deleteTransaction };
 }
 
 /**

@@ -1,7 +1,79 @@
 import type { Request, Response } from 'express';
 import GeminiAnalysisService from '../services/GeminiService.js';
-import { validateAnalyzeRequest } from '../validators.js';
+import { validateAnalyzeRequest, type ValidatedTransaction, type ValidatedReservation } from '../validators.js';
 import { config } from '../config.js';
+
+// Define proper interfaces that match the client types
+interface Transaction {
+  id: string;
+  date: string;
+  amount: number;
+  type: TransactionType;
+  category: string;
+  description: string;
+  paymentMethod: PaymentMethod;
+  reservationId?: string;
+}
+
+interface Reservation {
+  id: string;
+  clientId: string;
+  cabinCount: number;
+  startDate: string;
+  endDate: string;
+  adults: number;
+  children: number;
+  totalAmount: number;
+  status: ReservationStatus;
+  isArchived?: boolean;
+}
+
+enum TransactionType { INCOME = 'Ingreso', EXPENSE = 'Gasto' }
+enum PaymentMethod { CASH = 'Efectivo', TRANSFER = 'Transferencia' }
+enum ReservationStatus { 
+  INFORMATION = 'Información', 
+  CONFIRMED = 'Confirmada', 
+  COMPLETED = 'Completada', 
+  CANCELLED = 'Cancelada' 
+}
+
+// Helper function to convert validated types to proper Transaction/Reservation types
+const convertToTransaction = (validated: ValidatedTransaction): Transaction => {
+  const result: Transaction = {
+    id: validated.id,
+    date: validated.date,
+    amount: validated.amount,
+    type: validated.type === 'Ingreso' ? TransactionType.INCOME : TransactionType.EXPENSE,
+    category: validated.category,
+    description: validated.description,
+    paymentMethod: validated.paymentMethod === 'Efectivo' ? PaymentMethod.CASH : PaymentMethod.TRANSFER,
+  };
+  if (validated.reservationId) {
+    result.reservationId = validated.reservationId;
+  }
+  return result;
+};
+
+const convertToReservation = (validated: ValidatedReservation): Reservation => {
+  const result: Reservation = {
+    id: validated.id,
+    clientId: validated.clientId,
+    cabinCount: validated.cabinCount,
+    startDate: validated.startDate,
+    endDate: validated.endDate,
+    adults: validated.adults,
+    children: validated.children,
+    totalAmount: validated.totalAmount,
+    status: validated.status === 'Información' ? ReservationStatus.INFORMATION :
+             validated.status === 'Confirmada' ? ReservationStatus.CONFIRMED :
+             validated.status === 'Completada' ? ReservationStatus.COMPLETED :
+             ReservationStatus.CANCELLED,
+  };
+  if (validated.isArchived !== undefined) {
+    result.isArchived = validated.isArchived;
+  }
+  return result;
+};
 
 /**
  * Handler para el endpoint POST /api/analyze
@@ -27,10 +99,14 @@ export const analyzeHandler = async (
     // 3. Crear servicio de Gemini
     const geminiService = new GeminiAnalysisService(config.geminiApiKey);
 
-    // 4. Llamar servicio
+    // 4. Convert validated data to proper types
+    const transactions = data.transactions.map(convertToTransaction);
+    const reservations = data.reservations.map(convertToReservation);
+
+    // 5. Llamar servicio
     const analysis = await geminiService.analyzeBusinessData(
-      data.transactions,
-      data.reservations
+      transactions,
+      reservations
     );
 
     // 5. Retornar respuesta exitosa

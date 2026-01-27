@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { ErrorBoundary } from './components/templates/ErrorBoundary';
-import { Layout } from './components/templates/Layout';
-import { Dashboard } from './components/organisms/Dashboard';
-import { Reservations } from './components/organisms/Reservations';
-import { Finances } from './components/organisms/Finances';
-import { Clients } from './components/organisms/Clients';
-import { ViewState } from './types';
-import { DataProvider } from './contexts/DataContext';
+import { useState } from 'react';
+import { ErrorBoundary } from '../../../../components/templates/ErrorBoundary';
+import { Layout } from '../../../../components/templates/Layout';
+import { Dashboard } from '../../../../components/organisms/Dashboard';
+import { Reservations } from '../../../../components/organisms/Reservations';
+import { Finances } from '../../../../components/organisms/Finances';
+import { Clients } from '../../../../components/organisms/Clients';
+import { ViewState } from '../../../../src/types';
+import { DataProvider } from '../../../../contexts/DataContext';
 
 // ============================================================================
 // CONTENEDOR PRINCIPAL - Envuelve todo con DataProvider

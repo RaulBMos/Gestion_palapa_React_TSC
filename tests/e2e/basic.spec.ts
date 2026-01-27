@@ -45,6 +45,7 @@ test.describe('Basic App Loading', () => {
     
     for (let i = 0; i < Math.min(allButtons.length, 5); i++) {
       const button = allButtons[i];
+      if (!button) continue;
       const text = await button.textContent();
       console.log(`Button ${i}:`, text);
     }

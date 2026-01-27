@@ -1,5 +1,5 @@
 import { calculateAllMetrics } from './calculations';
-import { Reservation, Transaction } from '../types';
+import { Reservation, Transaction } from '../src/types';
 
 /**
  * Genera un análisis local basado en KPIs cuando la API de IA falla

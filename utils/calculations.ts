@@ -3,7 +3,7 @@
  * Exporta funciones puras para fácil testing
  */
 
-import { Reservation, ReservationStatus, Transaction, TransactionType } from '../types';
+import { Reservation, ReservationStatus, Transaction, TransactionType } from '../src/types';
 
 /**
  * Calcula la ocupación mensual actual

@@ -15,7 +15,7 @@ import { useState, useCallback, useEffect } from 'react';
  * const [user, setUser] = useSafeLocalStorage('user', { name: 'Guest' });
  */
 export function useSafeLocalStorage<T>(key: string, initialValue: T): [T, (value: T) => void] {
-  // Estado para el valor actual
+  // Estado para el valor actual - usando lazy initializer
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
       // Verificar que localStorage está disponible
@@ -52,25 +52,19 @@ export function useSafeLocalStorage<T>(key: string, initialValue: T): [T, (value
   const setValue = useCallback(
     (value: T) => {
       try {
-        // Validar que localStorage está disponible
-        if (typeof window === 'undefined') {
-          console.warn('[useSafeLocalStorage] localStorage no disponible');
-          setStoredValue(value);
-          return;
-        }
-
         // Convertir a JSON
         const valueToStore = JSON.stringify(value);
 
-        // Guardar en localStorage
-        window.localStorage.setItem(key, valueToStore);
-
-        // Actualizar estado
-        setStoredValue(value);
+        // Validar que localStorage está disponible y guardar
+        if (typeof window === 'undefined') {
+          console.warn('[useSafeLocalStorage] localStorage no disponible');
+        } else {
+          window.localStorage.setItem(key, valueToStore);
+        }
       } catch (error) {
         console.error(`[useSafeLocalStorage] Error al escribir "${key}" en localStorage:`, error);
-
-        // Si falla (ej: cuota superada), al menos actualizar el estado local
+      } finally {
+        // Siempre actualizar el estado local, sin importar si localStorage funcionó
         setStoredValue(value);
       }
     },
@@ -132,6 +126,42 @@ export function useClearStorage(keys?: string[]) {
 }
 
 /**
+ * Función para calcular tamaño de localStorage
+ * Extraída para reutilización y testing
+ */
+const calculateLocalStorageSize = () => {
+  try {
+    if (typeof window === 'undefined') {
+      return { used: 0, available: 0, percentage: 0 };
+    }
+
+    let totalSize = 0;
+
+    // Calcular tamaño total usando Object.keys() para evitar hasOwnProperty
+    Object.keys(window.localStorage).forEach(key => {
+      const value = window.localStorage.getItem(key);
+      if (value) {
+        totalSize += key.length + value.length;
+      }
+    });
+
+    // Estimación de límite (usualmente 5-10MB)
+    // 5MB = 5 * 1024 * 1024 bytes
+    const estimatedLimit = 5 * 1024 * 1024;
+    const percentage = (totalSize / estimatedLimit) * 100;
+
+    return {
+      used: totalSize,
+      available: estimatedLimit - totalSize,
+      percentage: Math.round(percentage),
+    };
+  } catch (error) {
+    console.warn('[useLocalStorageSize] Error al calcular tamaño:', error);
+    return { used: 0, available: 0, percentage: 0 };
+  }
+};
+
+/**
  * Hook para obtener el tamaño de localStorage
  * Útil para debugging y monitoreo
  * 
@@ -141,39 +171,20 @@ export function useClearStorage(keys?: string[]) {
  * const { used, available, percentage } = useLocalStorageSize();
  */
 export function useLocalStorageSize() {
-  const [size, setSize] = useState({ used: 0, available: 0, percentage: 0 });
+  const [size, setSize] = useState(() => {
+    // Lazy initializer para calcular tamaño inicial
+    return calculateLocalStorageSize();
+  });
 
+  // Efecto para recalcular tamaño cuando localStorage cambia externamente
   useEffect(() => {
-    try {
-      if (typeof window === 'undefined') {
-        return;
-      }
+    const handleStorageChange = () => {
+      const newSize = calculateLocalStorageSize();
+      setSize(newSize);
+    };
 
-      let totalSize = 0;
-
-      // Calcular tamaño total
-      for (const key in window.localStorage) {
-        if (window.localStorage.hasOwnProperty(key)) {
-          const value = window.localStorage.getItem(key);
-          if (value) {
-            totalSize += key.length + value.length;
-          }
-        }
-      }
-
-      // Estimación de límite (usualmente 5-10MB)
-      // 5MB = 5 * 1024 * 1024 bytes
-      const estimatedLimit = 5 * 1024 * 1024;
-      const percentage = (totalSize / estimatedLimit) * 100;
-
-      setSize({
-        used: totalSize,
-        available: estimatedLimit - totalSize,
-        percentage: Math.round(percentage),
-      });
-    } catch (error) {
-      console.warn('[useLocalStorageSize] Error al calcular tamaño:', error);
-    }
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   return size;

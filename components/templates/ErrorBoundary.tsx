@@ -1,126 +1,54 @@
-import React, { ReactNode, ErrorInfo } from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { Component, type ReactNode } from 'react';
+import { logError } from '../../utils/logger';
 
-interface Props {
-  children: ReactNode;
+export interface ErrorBoundaryProps {
+  readonly children: ReactNode;
+  readonly fallback?: ReactNode;
 }
 
-interface State {
-  hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorInfo | null;
+export interface ErrorBoundaryState {
+  readonly hasError: boolean;
+  readonly error: Error | null;
 }
 
-/**
- * Error Boundary Component
- * Captura errores de componentes hijos y muestra una UI amigable
- * 
- * Uso:
- * <ErrorBoundary>
- *   <TuComponente />
- * </ErrorBoundary>
- */
-export class ErrorBoundary extends React.Component<Props, State> {
-  constructor(props: Props) {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
       hasError: false,
       error: null,
-      errorInfo: null,
     };
   }
 
-  static getDerivedStateFromError(error: Error): Partial<State> {
-    return { hasError: true };
+  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error para debugging
-    console.error('Error capturado por ErrorBoundary:', error);
-    console.error('Error Info:', errorInfo);
-
-    this.setState({
-      error,
-      errorInfo,
+  public componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+    logError(error, {
+      component: 'ErrorBoundary',
+      action: 'componentDidCatch',
+      phase: 'render',
+    }, {
+      componentStack: errorInfo.componentStack || '',
     });
   }
 
-  resetError = () => {
-    this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null,
-    });
-  };
-
-  render() {
+  public render(): ReactNode {
     if (this.state.hasError) {
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full border border-red-200">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-red-500 to-orange-500 p-6 text-white rounded-t-lg">
-              <div className="flex items-center gap-3">
-                <AlertCircle size={32} />
-                <h1 className="text-2xl font-bold">¡Algo salió mal!</h1>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="p-6 space-y-4">
-              <p className="text-slate-700 font-medium">
-                Hemos encontrado un error inesperado en la aplicación.
-              </p>
-
-              {/* Error Details (solo en desarrollo) */}
-              {process.env.NODE_ENV === 'development' && this.state.error && (
-                <div className="bg-slate-100 p-3 rounded border border-slate-300">
-                  <p className="text-xs font-mono text-slate-600 break-words">
-                    <strong>Error:</strong> {this.state.error.toString()}
-                  </p>
-                  {this.state.errorInfo && (
-                    <details className="mt-2 text-xs">
-                      <summary className="cursor-pointer font-semibold text-slate-700">
-                        Detalles técnicos
-                      </summary>
-                      <pre className="mt-2 text-xs overflow-auto bg-white p-2 rounded border border-slate-200">
-                        {this.state.errorInfo.componentStack}
-                      </pre>
-                    </details>
-                  )}
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="space-y-3">
-                <button
-                  onClick={this.resetError}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                >
-                  <RefreshCw size={18} />
-                  Intentar de nuevo
-                </button>
-
-                <button
-                  onClick={() => window.location.href = '/'}
-                  className="w-full bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-4 rounded-lg transition-colors"
-                >
-                  Volver al inicio
-                </button>
-              </div>
-
-              {/* Help Text */}
-              <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                <p className="text-sm text-blue-900">
-                  💡 <strong>Tip:</strong> Si el problema persiste, intenta:
-                </p>
-                <ul className="text-sm text-blue-800 mt-2 space-y-1 ml-4 list-disc">
-                  <li>Limpiar la caché del navegador</li>
-                  <li>Recargar la página (F5)</li>
-                  <li>Contactar con soporte si el error continúa</li>
-                </ul>
-              </div>
-            </div>
+      return this.props.fallback || (
+        <div className="min-h-screen bg-red-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 border border-red-200">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
+            <p className="text-gray-700 mb-4">
+              Ha ocurrido un error inesperado. Por favor, recarga la página.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded transition-colors"
+            >
+              Recargar página
+            </button>
           </div>
         </div>
       );

@@ -6,6 +6,11 @@ export default defineConfig({
   css: {
     postcss: './postcss.config.js',
   },
+  resolve: {
+    alias: {
+      '@': './src'
+    }
+  },
   define: {
     'process.env': {
       NODE_ENV: process.env.NODE_ENV || 'development'

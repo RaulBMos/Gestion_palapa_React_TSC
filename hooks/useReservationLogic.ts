@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { FormEvent } from 'react';
-import { Reservation, ReservationStatus, Client } from '../types';
+import { Reservation, ReservationStatus, Client } from '../src/types';
 
 interface CalendarState {
   currentMonth: Date;
@@ -70,12 +70,12 @@ interface ReservationLogicHookReturn {
 export const useReservationLogic = (
   reservations: Reservation[],
   clients: Client[],
-  totalAvailableCabins: number,
+  _totalAvailableCabins: number,
   onAdd?: (res: Reservation) => void,
   onEdit?: (res: Reservation) => void
 ): ReservationLogicHookReturn => {
   // --- Calendar State ---
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [pickerMonth, setPickerMonth] = useState(new Date());
 
@@ -104,6 +104,7 @@ export const useReservationLogic = (
   const formatDateForDisplay = useCallback((dateStr: string | undefined) => {
     if (!dateStr) return '-';
     const [y, m, d] = dateStr.split('-').map(Number);
+    if (y === undefined || m === undefined || d === undefined) return '-';
     const date = new Date(y, m - 1, d);
     return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
   }, []);
@@ -164,7 +165,7 @@ export const useReservationLogic = (
     setEditingId(res.id);
     if (res.startDate) {
       const [y, m, d] = res.startDate.split('-').map(Number);
-      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      if (y !== undefined && m !== undefined && d !== undefined && !isNaN(y) && !isNaN(m) && !isNaN(d)) {
         setPickerMonth(new Date(y, m - 1, 1));
       } else {
         setPickerMonth(new Date());

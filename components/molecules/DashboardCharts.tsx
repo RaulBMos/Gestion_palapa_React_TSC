@@ -57,8 +57,8 @@ export const ExpenseCategoryChart: React.FC<ExpenseCategoryChartProps> = ({ data
             paddingAngle={5}
             dataKey="value"
           >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            {data.map((_entry, index) => (
+              <Cell key={`cell-${index}`} {...(COLORS[index % COLORS.length] && { fill: COLORS[index % COLORS.length] })} />
             ))}
           </Pie>
           <Tooltip />

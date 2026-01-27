@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Reservation, ReservationStatus, Client } from '../../types';
-import { Plus, Search, Calendar as CalendarIcon, Home, X, Check, ChevronLeft, ChevronRight, LayoutGrid, List, User, Pencil, ArrowRight, AlertCircle, History, Archive, Info } from 'lucide-react';
+import React, { useState } from 'react';
+import { Reservation, ReservationStatus, Client } from '../../src/types';
+import { Plus, Search, Calendar as CalendarIcon, Home, X, Check, ChevronLeft, ChevronRight, List, User, Pencil, ArrowRight, AlertCircle, History, Archive, Info } from 'lucide-react';
 import { useData } from '../../hooks/useData';
 
 interface ReservationsProps {
@@ -21,7 +21,7 @@ export const Reservations: React.FC<ReservationsProps> = (props) => {
   const clients = props.clients ?? contextData.clients;
   const totalAvailableCabins = props.totalAvailableCabins ?? contextData.totalCabins;
   const addReservation = props.addReservation ?? contextData.addReservation;
-  const editReservation = props.editReservation ?? contextData.editReservation;
+  const editReservation = props.editReservation ?? contextData.updateReservation;
   const updateReservationStatus = props.updateReservationStatus ?? contextData.updateReservationStatus;
   const archiveReservation = props.archiveReservation ?? contextData.archiveReservation;
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar');
@@ -60,6 +60,7 @@ export const Reservations: React.FC<ReservationsProps> = (props) => {
     // Split explicitly to avoid browser parsing as UTC midnight
     const [y, m, d] = dateStr.split('-').map(Number);
     // Create date as Local Time (Year, MonthIndex, Day)
+    if (y === undefined || m === undefined || d === undefined) return dateStr;
     const date = new Date(y, m - 1, d);
     return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
   };
@@ -100,7 +101,7 @@ export const Reservations: React.FC<ReservationsProps> = (props) => {
     if (res.startDate) {
       const [y, m, d] = res.startDate.split('-').map(Number);
       // Ensure valid date creation
-      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      if (y !== undefined && m !== undefined && d !== undefined && !isNaN(y) && !isNaN(m) && !isNaN(d)) {
           setPickerMonth(new Date(y, m - 1, 1));
       } else {
           setPickerMonth(new Date());

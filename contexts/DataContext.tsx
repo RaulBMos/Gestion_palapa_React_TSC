@@ -6,7 +6,8 @@ import {
   ReservationStatus,
   TransactionType,
   PaymentMethod,
-} from '../types';
+  DataContextType,
+} from '../src/types';
 import { useSafeLocalStorage } from '../hooks/useSafeLocalStorage';
 
 // ============================================================================
@@ -126,29 +127,9 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
 // TIPOS
 // ============================================================================
 
-export interface DataContextType {
-  // Estado
-  clients: Client[];
-  reservations: Reservation[];
-  transactions: Transaction[];
-  totalCabins: number;
-
-  // Acciones - Clientes
-  addClient: (client: Client) => void;
-  editClient: (updatedClient: Client) => void;
-  deleteClient: (id: string) => void;
-
-  // Acciones - Reservaciones
-  addReservation: (reservation: Reservation) => void;
-  editReservation: (updatedReservation: Reservation) => void;
-  updateReservationStatus: (id: string, status: ReservationStatus) => void;
-  archiveReservation: (id: string) => void;
-
-  // Acciones - Transacciones
-  addTransaction: (transaction: Transaction) => void;
-  editTransaction: (updatedTransaction: Transaction) => void;
-  deleteTransaction: (id: string) => void;
-}
+// Use the DataContextType from types/index.ts
+// Use DataContextType from types/index.ts
+export type { DataContextType };
 
 // ============================================================================
 // CONTEXTO
@@ -180,8 +161,12 @@ export function DataProvider({ children }: DataProviderProps) {
   );
 
   // ✅ ACCIONES - CLIENTES
-  const addClient = useCallback((client: Client) => {
-    setClients([...clients, client]);
+  const addClient = useCallback((client: Omit<Client, 'id'>) => {
+    const newClient: Client = {
+      ...client,
+      id: `client-${Date.now()}`,
+    };
+    setClients([...clients, newClient]);
   }, [clients, setClients]);
 
   const editClient = useCallback((updatedClient: Client) => {
@@ -193,26 +178,34 @@ export function DataProvider({ children }: DataProviderProps) {
   }, [clients, setClients]);
 
   // ✅ ACCIONES - TRANSACCIONES (helper)
-  const addTransaction = useCallback((transaction: Transaction) => {
-    setTransactions([...transactions, transaction]);
+  const addTransaction = useCallback((transaction: Omit<Transaction, 'id'>) => {
+    const newTransaction: Transaction = {
+      ...transaction,
+      id: `tx-${Date.now()}`,
+    };
+    setTransactions([...transactions, newTransaction]);
   }, [transactions, setTransactions]);
 
   // ✅ ACCIONES - RESERVACIONES
   const addReservation = useCallback(
-    (reservation: Reservation) => {
-      setReservations([...reservations, reservation]);
+    (reservation: Omit<Reservation, 'id'>) => {
+      const newReservation: Reservation = {
+        ...reservation,
+        id: `res-${Date.now()}`,
+      };
+      setReservations([...reservations, newReservation]);
 
       // Crear transacción automáticamente si está confirmada
-      if (reservation.status === ReservationStatus.CONFIRMED) {
+      if (newReservation.status === ReservationStatus.CONFIRMED) {
         const transaction: Transaction = {
           id: `t-${Date.now()}`,
-          date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
-          amount: reservation.totalAmount,
+          date: new Date().toISOString().split('T')[0]!, // YYYY-MM-DD
+          amount: newReservation.totalAmount,
           type: TransactionType.INCOME,
           category: 'Renta',
-          description: `Reserva nueva ${reservation.id} (${reservation.cabinCount} cabañas)`,
+          description: `Reserva nueva ${newReservation.id || 'unknown'} (${newReservation.cabinCount} cabañas)`,
           paymentMethod: PaymentMethod.TRANSFER,
-          reservationId: reservation.id,
+          ...(newReservation.id && { reservationId: newReservation.id }),
         };
         addTransaction(transaction);
       }
@@ -260,22 +253,37 @@ export function DataProvider({ children }: DataProviderProps) {
       reservations,
       transactions,
       totalCabins: TOTAL_CABINS,
+      loading: false,
+      error: null,
 
       // Acciones - Clientes
       addClient,
       editClient,
+      updateClient: editClient,
       deleteClient,
 
       // Acciones - Reservaciones
       addReservation,
       editReservation,
+      updateReservation: editReservation,
+      deleteReservation: (id: string) => {
+        // Implementación simplificada - marcar como archivada
+        archiveReservation(id);
+      },
       updateReservationStatus,
       archiveReservation,
 
       // Acciones - Transacciones
       addTransaction,
       editTransaction,
+      updateTransaction: editTransaction,
       deleteTransaction,
+      refreshData: async () => {
+        // No-op for localStorage implementation
+      },
+      clearError: () => {
+        // No-op for localStorage implementation
+      },
     }),
     [
       clients,

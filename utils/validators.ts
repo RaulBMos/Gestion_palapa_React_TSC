@@ -1,12 +1,5 @@
 import { z } from 'zod';
-import {
-  Client,
-  Reservation,
-  Transaction,
-  PaymentMethod,
-  TransactionType,
-  ReservationStatus,
-} from '../types';
+import { ReservationStatus, TransactionType, PaymentMethod } from '../src/types';
 
 /**
  * Esquema Zod para Cliente
@@ -195,9 +188,9 @@ export function validateData<T>(schema: z.ZodSchema<T>, data: unknown): T {
   try {
     return schema.parse(data) as T;
   } catch (error) {
-    if (error instanceof z.ZodError) {
+if (error instanceof z.ZodError) {
       // Formatear errores de Zod de forma legible
-      const errorMessages = error.errors
+      const errorMessages = error.issues
         .map((err) => {
           const path = err.path.length > 0 ? err.path.join('.') : 'root';
           return `${path}: ${err.message}`;
@@ -240,8 +233,8 @@ export function safeValidateData<T>(
     const validatedData = schema.parse(data) as T;
     return { success: true, data: validatedData };
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errors = error.errors.map((err) => {
+if (error instanceof z.ZodError) {
+      const errors = error.issues.map((err) => {
         const path = err.path.length > 0 ? err.path.join('.') : 'root';
         return `${path}: ${err.message}`;
       });
@@ -276,8 +269,8 @@ export function partialValidateData<T>(
     const partialSchema = schema instanceof z.ZodObject ? schema.partial() : schema;
     return partialSchema.parse(data) as Partial<T>;
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      const errorMessages = error.errors
+if (error instanceof z.ZodError) {
+      const errorMessages = error.issues
         .map((err) => {
           const path = err.path.length > 0 ? err.path.join('.') : 'root';
           return `${path}: ${err.message}`;

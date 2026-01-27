@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Client } from '../../types';
+import { Client } from '../../src/types';
 import { Mail, Phone, User, Plus, Pencil, Trash2, X } from 'lucide-react';
 import { useData } from '../../hooks/useData';
 
@@ -10,14 +10,14 @@ interface ClientsProps {
   deleteClient?: (id: string) => void;
 }
 
-export const Clients: React.FC<ClientsProps> = (props) => {
+export const Clients: React.FC<ClientsProps> = (_props) => {
   // ✅ Obtener datos del contexto (o usar props si se proporcionan para retrocompatibilidad)
   const contextData = useData();
   
-  const clients = props.clients ?? contextData.clients;
-  const addClient = props.addClient ?? contextData.addClient;
-  const editClient = props.editClient ?? contextData.editClient;
-  const deleteClient = props.deleteClient ?? contextData.deleteClient;
+  const clients = _props.clients ?? contextData.clients;
+  const addClient = _props.addClient ?? contextData.addClient;
+  const editClient = _props.editClient ?? contextData.updateClient;
+  const deleteClient = _props.deleteClient ?? contextData.deleteClient;
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newClient, setNewClient] = useState<Partial<Client>>({});
@@ -44,8 +44,8 @@ export const Clients: React.FC<ClientsProps> = (props) => {
 
     return {
       isValid: !emailError && !phoneError,
-      emailError,
-      phoneError
+      ...(emailError && { emailError }),
+      ...(phoneError && { phoneError })
     };
   };
 
@@ -194,9 +194,10 @@ export const Clients: React.FC<ClientsProps> = (props) => {
               />
               {(() => {
                 const validation = validateClient(newClient);
-                return validation.emailError && (
-                  <p className="text-red-500 text-xs mt-1">⚠️ {validation.emailError}</p>
-                );
+                if (validation.emailError) {
+                  return <p className="text-red-500 text-xs mt-1">⚠️ {validation.emailError}</p>;
+                }
+                return null;
               })()}
               <input 
                 placeholder="Teléfono" 
@@ -207,9 +208,10 @@ export const Clients: React.FC<ClientsProps> = (props) => {
               />
               {(() => {
                 const validation = validateClient(newClient);
-                return validation.phoneError && (
-                  <p className="text-red-500 text-xs mt-1">⚠️ {validation.phoneError}</p>
-                );
+                if (validation.phoneError) {
+                  return <p className="text-red-500 text-xs mt-1">⚠️ {validation.phoneError}</p>;
+                }
+                return null;
               })()}
                <textarea 
                 placeholder="Notas" 

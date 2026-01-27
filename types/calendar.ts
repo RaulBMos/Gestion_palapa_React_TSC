@@ -18,11 +18,6 @@ export interface OccupancyData {
   activeReservations: Reservation[];
 }
 
-export interface OccupancyData {
-  occupiedCount: number;
-  activeReservations: Reservation[];
-}
-
 export interface CalendarDayInfo {
   date: Date;
   dateStr: string;
