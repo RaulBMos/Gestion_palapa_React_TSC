@@ -1,12 +1,12 @@
-import { logger } from './logger';
+import { logger } from '@/utils/logger';
 
 export interface RetryOptions {
   maxAttempts?: number;
   baseDelay?: number;
   maxDelay?: number;
   backoffFactor?: number;
-  retryCondition?: (error: any) => boolean;
-  onRetry?: (attempt: number, error: any, delay: number) => void;
+  retryCondition?: (error: unknown) => boolean;
+  onRetry?: (attempt: number, error: unknown, delay: number) => void;
 }
 
 export interface RetryResult<T> {
@@ -22,9 +22,13 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
   baseDelay: 1000,
   maxDelay: 30000,
   backoffFactor: 2,
-  retryCondition: (error: any) => {
-    const errorMessage = error?.message?.toLowerCase() || '';
-    
+  retryCondition: (error: unknown) => {
+    const errorMessage = error instanceof Error
+      ? error.message.toLowerCase()
+      : typeof error === 'string'
+        ? error.toLowerCase()
+        : '';
+
     const retryableErrors = [
       'network error',
       'timeout',
@@ -37,13 +41,13 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
       'service unavailable',
       'gateway timeout'
     ];
-    
+
     return retryableErrors.some(err => errorMessage.includes(err));
   },
-  onRetry: (attempt: number, error: any, delay: number) => {
+  onRetry: (attempt: number, error: unknown, delay: number) => {
     logger.debug(`Retry attempt ${attempt}`, {
       attempt,
-      error: error?.message,
+      error: error instanceof Error ? error.message : String(error),
       delay,
       component: 'retry'
     });
@@ -67,7 +71,7 @@ export async function withRetry<T>(
       });
 
       const data = await operation();
-      
+
       logger.debug(`Operation succeeded on attempt ${attempt}`, {
         attempt,
         totalDelay,
@@ -83,7 +87,7 @@ export async function withRetry<T>(
 
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      
+
       logger.warn(`Operation failed on attempt ${attempt}`, {
         attempt,
         error: lastError.message,
@@ -91,7 +95,7 @@ export async function withRetry<T>(
       });
 
       const shouldRetry = attempt < config.maxAttempts && config.retryCondition(lastError);
-      
+
       if (!shouldRetry) {
         break;
       }
@@ -100,7 +104,7 @@ export async function withRetry<T>(
         config.baseDelay * Math.pow(config.backoffFactor, attempt - 1),
         config.maxDelay
       );
-      
+
       totalDelay += delay;
 
       config.onRetry(attempt, lastError, delay);
@@ -128,7 +132,7 @@ export function createRetryWithBackoff(options?: RetryOptions) {
   return <T>(operation: () => Promise<T>) => withRetry(operation, options);
 }
 
-export function isRetryableError(error: any): boolean {
+export function isRetryableError(error: unknown): boolean {
   return DEFAULT_OPTIONS.retryCondition(error);
 }
 

@@ -80,19 +80,21 @@ Incluye:
           model: 'gemini-1.5-flash',
           contents: prompt,
         }),
-        new Promise((_, reject) =>
+        new Promise<never>((_, reject) =>
           setTimeout(
             () => reject(new Error('Timeout excedido (30s)')),
             30000
           )
         ),
-      ] as any);
+      ]);
 
-      if (!response?.text) {
+      const result = response as { text: string };
+
+      if (!result?.text) {
         throw new Error('Respuesta vacía de Gemini');
       }
 
-      return response.text;
+      return result.text;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       console.error('Gemini API Error:', {

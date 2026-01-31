@@ -1,11 +1,19 @@
 import { GoogleGenerativeAI, GenerativeModel, GenerationConfig } from '@google/generative-ai';
-import { logger, logError, logInfo, logWarning, logDebug } from '../utils/logger';
-import { withRetry, type RetryOptions } from '../utils/retry';
+import { logger, logError, logInfo, logWarning, logDebug } from '@/utils/logger';
+import { withRetry, type RetryOptions } from '@/utils/retry';
 import { ZodSchema, ZodError } from 'zod';
-import { GeminiResponse, GeminiConfig } from '../types/ai.schema';
-import { Transaction, Reservation } from '../types/index';
+import {
+  GeminiResponse,
+  GeminiConfig,
+  ComplexAnalysis, // Type
+  AnalysisResponse, // Type
+  ComplexAnalysisSchema, // Zod Schema
+  AnalysisResponseSchema, // Zod Schema
+  createGeminiResponseSchema // Helper
+} from '@/types';
+import { Transaction, Reservation } from '@/types';
 import DOMPurify from 'dompurify';
-import { VITE_SERVER_URL } from '../config/env';
+import { VITE_SERVER_URL } from '@/config/env';
 
 /**
  * Environment Variables for Gemini Service Configuration:
@@ -45,7 +53,7 @@ export class AIValidationError extends Error {
     this.name = 'AIValidationError';
     this.cause = cause;
     this.response = response;
-    
+
     // Mantener stack trace
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, AIValidationError);
@@ -56,12 +64,12 @@ export class AIValidationError extends Error {
    * Formatea el error para logging/debugging
    */
   public toDetailedString(): string {
-    const validationErrors = this.cause instanceof ZodError 
-      ? this.cause.issues.map(issue => 
-          `- ${issue.path.join('.')}: ${issue.message}`
-        ).join('\n')
+    const validationErrors = this.cause instanceof ZodError
+      ? this.cause.issues.map(issue =>
+        `- ${issue.path.join('.')}: ${issue.message}`
+      ).join('\n')
       : this.cause.message;
-    
+
     return `${this.message}\nValidation Errors: ${validationErrors}\nOriginal Response: ${JSON.stringify(this.response, null, 2)}`;
   }
 }
@@ -143,10 +151,12 @@ export class AIValidationError extends Error {
 // };
 
 // Tipo inferido del esquema
-export type ValidatedAIResponse = any;
-export type FinancialAnalysisData = any;
-export type ReservationAnalysisData = any;
-export type CombinedAnalysisData = any;
+// Tipos fuertemente tipados
+export type CombinedAnalysisData = GeminiResponse<ComplexAnalysis>;
+export type FinancialAnalysisData = GeminiResponse<AnalysisResponse>;
+export type ReservationAnalysisData = GeminiResponse<AnalysisResponse>;
+
+export type ValidatedAIResponse = CombinedAnalysisData | FinancialAnalysisData | ReservationAnalysisData;
 
 /**
  * Función de validación principal
@@ -162,8 +172,7 @@ export const validateAIResponse = (
     if (typeof response === 'string') {
       try {
         parsedResponse = JSON.parse(response);
-      } catch (_parseError) {
-        // Crear un error genérico para JSON parsing
+      } catch {
         const jsonError = new Error('La respuesta de la IA no es un JSON válido');
         const emptyZodError = Object.create(ZodError.prototype);
         emptyZodError.issues = [];
@@ -176,8 +185,18 @@ export const validateAIResponse = (
       }
     }
 
-    // Validación básica - para simplificar, retornamos el parsed response
-    return parsedResponse as ValidatedAIResponse;
+    // Seleccionar esquema basado en el tipo esperado
+    let schema;
+    if (expectedType === 'combined') {
+      schema = createGeminiResponseSchema(ComplexAnalysisSchema);
+    } else {
+      schema = createGeminiResponseSchema(AnalysisResponseSchema);
+    }
+
+    // Validar con Zod
+    const validatedData = schema.parse(parsedResponse);
+    return validatedData as ValidatedAIResponse;
+
   } catch (validationError) {
     if (validationError instanceof ZodError) {
       throw new AIValidationError(
@@ -186,12 +205,11 @@ export const validateAIResponse = (
         response
       );
     }
-    
+
     if (validationError instanceof AIValidationError) {
       throw validationError;
     }
 
-    // Re-lanzar otros errores como ValidationError
     const unexpectedError = new Error(`Error inesperado al validar respuesta: ${validationError instanceof Error ? validationError.message : 'Error desconocido'}`);
     const emptyZodError = Object.create(ZodError.prototype);
     emptyZodError.issues = [];
@@ -244,7 +262,7 @@ interface AnalysisOptions {
 const DEFAULT_OPTIONS: Required<AnalysisOptions> = {
   maxRetries: 3,
   timeoutMs: 20000,
-  onRetry: () => {},
+  onRetry: () => { },
 };
 
 /**
@@ -288,7 +306,7 @@ const sanitizeContent = (content: string): string => {
     ],
     KEEP_CONTENT: true,
   };
-  
+
   return DOMPurify.sanitize(content, config);
 };
 
@@ -311,7 +329,7 @@ class GeminiService {
    * Centraliza toda la configuración y decide qué método de fetch usar
    */
   private async executeRequest(
-    prompt: string, 
+    prompt: string,
     config?: Partial<GeminiConfig>
   ): Promise<ApiResponse> {
     // Verificar modo de ejecución mediante variables de entorno
@@ -319,8 +337,8 @@ class GeminiService {
     const proxyUrl = import.meta.env.VITE_PROXY_API_URL;
 
     if (useProxy && proxyUrl) {
-      logger.info('Using proxy API for Gemini request', { 
-        service: 'gemini', 
+      logger.info('Using proxy API for Gemini request', {
+        service: 'gemini',
         proxyUrl: proxyUrl.replace(/\/api.*$/, '') // Ocultar ruta completa en logs
       });
       return this.executeProxyRequest(prompt, config, proxyUrl);
@@ -335,11 +353,11 @@ class GeminiService {
    */
   private getApiKey(): string {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    
+
     if (!apiKey) {
       throw new Error('Gemini API key not found. Please set VITE_GEMINI_API_KEY in your environment variables.');
     }
-    
+
     return apiKey;
   }
 
@@ -349,15 +367,15 @@ class GeminiService {
   private initializeClient(): void {
     try {
       const useProxy = import.meta.env.VITE_USE_PROXY_API === 'true';
-      
+
       if (!useProxy) {
         const apiKey = this.getApiKey();
         this.genAI = new GoogleGenerativeAI(apiKey);
         logger.info('Gemini client initialized successfully', { service: 'gemini', method: 'google-sdk' });
       } else {
-        logger.info('Proxy API mode detected, skipping Google SDK initialization', { 
-          service: 'gemini', 
-          method: 'proxy-api' 
+        logger.info('Proxy API mode detected, skipping Google SDK initialization', {
+          service: 'gemini',
+          method: 'proxy-api'
         });
       }
     } catch (error) {
@@ -370,7 +388,7 @@ class GeminiService {
    * Ejecuta request usando SDK de Google directamente
    */
   private async executeGoogleSDKRequest(
-    prompt: string, 
+    prompt: string,
     config?: Partial<GeminiConfig>
   ): Promise<ApiResponse> {
     const model = this.getModel(config);
@@ -399,7 +417,7 @@ class GeminiService {
    * Ejecuta request usando API Proxy propia
    */
   private async executeProxyRequest(
-    prompt: string, 
+    prompt: string,
     config?: Partial<GeminiConfig>,
     proxyUrl?: string
   ): Promise<ApiResponse> {
@@ -408,7 +426,7 @@ class GeminiService {
     }
 
     const requestConfig = { ...this.defaultConfig, ...config };
-    
+
     const response = await fetch(`${proxyUrl}/api/gemini`, {
       method: 'POST',
       headers: {
@@ -440,12 +458,12 @@ class GeminiService {
 
   private getModel(config?: Partial<GeminiConfig>): GenerativeModel {
     const finalConfig = { ...this.defaultConfig, ...config } as typeof this.defaultConfig;
-    
+
     if (!this.genAI) {
       throw new Error('Gemini client not initialized');
     }
 
-    return this.genAI.getGenerativeModel({ 
+    return this.genAI.getGenerativeModel({
       model: finalConfig.model,
       generationConfig: {
         temperature: finalConfig.temperature,
@@ -464,28 +482,28 @@ class GeminiService {
     schema?: ZodSchema<T>,
     _config?: Partial<GeminiConfig>
   ): GeminiResponse<T> {
-    logger.debug('Processing API response', { 
+    logger.debug('Processing API response', {
       service: 'gemini',
       responseLength: response.text.length,
       schema: schema ? 'provided' : 'none'
     });
 
     let data: T;
-    
+
     if (schema) {
       try {
         const cleanText = this.extractJsonFromResponse(response.text);
         const parsed = JSON.parse(cleanText);
-        
+
         // Type narrowing with Zod validation
         const validatedData = schema.parse(parsed);
         data = validatedData;
-        
+
         logger.debug('Response validated with Zod schema', { service: 'gemini' });
       } catch (validationError) {
         if (validationError instanceof ZodError) {
-          logger.error('Zod validation failed', 
-            { service: 'gemini', response: response.text, issues: validationError.issues }, 
+          logger.error('Zod validation failed',
+            { service: 'gemini', response: response.text, issues: validationError.issues },
             validationError
           );
           return {
@@ -493,8 +511,8 @@ class GeminiService {
             error: `Validation failed: ${validationError.issues.map(issue => issue.message).join(', ')}`,
           };
         } else {
-          logger.error('Failed to parse JSON response', 
-            { service: 'gemini', response: response.text }, 
+          logger.error('Failed to parse JSON response',
+            { service: 'gemini', response: response.text },
             validationError as Error
           );
           return {
@@ -529,22 +547,22 @@ class GeminiService {
    * Maneja requests con lógica de fetch separada del procesamiento
    */
   private async handleRequest<T>(
-    prompt: string, 
-    schema?: ZodSchema<T>, 
+    prompt: string,
+    schema?: ZodSchema<T>,
     config?: Partial<GeminiConfig>,
     retryOptions?: RetryOptions
   ): Promise<GeminiResponse<T>> {
     const makeRequest = async (): Promise<GeminiResponse<T>> => {
       // 1. Fetch logic - usa executeRequest (único método que interactúa con env vars)
       const apiResponse = await this.executeRequest(prompt, config);
-      
+
       // 2. Processing logic - usa processApiResponse
       return this.processApiResponse(apiResponse, schema, config);
     };
 
     try {
       const retryResult = await withRetry(makeRequest, retryOptions);
-      
+
       if (retryResult.success) {
         return retryResult.data!;
       } else {
@@ -559,26 +577,26 @@ class GeminiService {
     // Primero intentar con el patrón original para backwards compatibility
     const jsonRegex = /```json\s*([\s\S]*?)\s*```|{[\s\S]*}|\[[\s\S]*\]/;
     const match = text.match(jsonRegex);
-    
+
     if (match) {
       return match[1] || match[0];
     }
-    
+
     // Si no funciona, buscar el primer { y el último }
     const firstBraceIndex = text.indexOf('{');
     const lastBraceIndex = text.lastIndexOf('}');
-    
+
     if (firstBraceIndex !== -1 && lastBraceIndex !== -1 && lastBraceIndex > firstBraceIndex) {
       const extractedJson = text.substring(firstBraceIndex, lastBraceIndex + 1);
       return extractedJson.trim();
     }
-    
+
     return text.trim();
   }
 
   private handleError(error: Error, model: string): GeminiResponse<never> {
     const errorMessage = error.message;
-    
+
     if (errorMessage.includes('QUOTA_EXCEEDED') || errorMessage.includes('quota')) {
       logger.quotaExceeded('gemini', { model, error: errorMessage });
       return {
@@ -587,7 +605,7 @@ class GeminiService {
         metadata: { model }
       };
     }
-    
+
     if (errorMessage.includes('NETWORK_ERROR') || errorMessage.includes('fetch')) {
       logger.networkError('gemini-api', error, { model });
       return {
@@ -596,7 +614,7 @@ class GeminiService {
         metadata: { model }
       };
     }
-    
+
     if (errorMessage.includes('API_KEY') || errorMessage.includes('authentication')) {
       logger.error('Authentication error with Gemini API', { service: 'gemini', model }, error);
       return {
@@ -605,7 +623,7 @@ class GeminiService {
         metadata: { model }
       };
     }
-    
+
     if (errorMessage.includes('safety') || errorMessage.includes('blocked')) {
       logger.warn('Content blocked by Gemini safety filters', { service: 'gemini', model });
       return {
@@ -614,9 +632,9 @@ class GeminiService {
         metadata: { model }
       };
     }
-    
+
     logger.error('Gemini API error', { service: 'gemini', model, error: errorMessage }, error);
-    
+
     return {
       success: false,
       error: 'An unexpected error occurred. Please try again.',
@@ -625,7 +643,7 @@ class GeminiService {
   }
 
   public async generateText(
-    prompt: string, 
+    prompt: string,
     config?: Partial<GeminiConfig>,
     retryOptions?: RetryOptions
   ): Promise<GeminiResponse<string>> {
@@ -633,8 +651,8 @@ class GeminiService {
   }
 
   public async generateStructured<T>(
-    prompt: string, 
-    schema: ZodSchema<T>, 
+    prompt: string,
+    schema: ZodSchema<T>,
     config?: Partial<GeminiConfig>,
     retryOptions?: RetryOptions
   ): Promise<GeminiResponse<T>> {
@@ -736,20 +754,20 @@ export const analyzeBusinessData = async (
   }
 
   // Determinar tipo de análisis esperado basado en los datos disponibles
-  const expectedType = transactions.length > 0 && reservations.length > 0 
+  const expectedType = transactions.length > 0 && reservations.length > 0
     ? 'combined' as const
-    : transactions.length > 0 
-    ? 'financial' as const
-    : 'reservation' as const;
+    : transactions.length > 0
+      ? 'financial' as const
+      : 'reservation' as const;
 
   let lastError: Error | null = null;
   let lastAborted = false;
 
-   // Reintentos con backoff exponencial
+  // Reintentos con backoff exponencial
   for (let attempt = 0; attempt < config.maxRetries; attempt++) {
     try {
       const controller = new AbortController();
-      
+
       // Configurar timeout
       const timeoutId = setTimeout(() => {
         logWarning('Timeout de solicitud de análisis', {
@@ -799,7 +817,7 @@ export const analyzeBusinessData = async (
         let rawResult;
         try {
           rawResult = await response.json();
-        } catch (parseError) {
+        } catch {
           const error = new Error('Error al parsear respuesta JSON del servidor');
           logError(error, {
             component: 'geminiService',
@@ -826,54 +844,59 @@ export const analyzeBusinessData = async (
           throw error;
         }
 
-         // ✅ VALIDAR respuesta de la IA con Zod
-         let validatedResponse: ValidatedAIResponse;
-         try {
-           validatedResponse = validateAIResponse(rawResult, expectedType);
-           logDebug('Respuesta validada exitosamente', {
-             component: 'geminiService',
-             action: 'analyzeBusinessData',
-             phase: 'response_validation',
-             attempt: attempt + 1,
-             expectedType,
-             success: validatedResponse.success,
-           });
-         } catch (validationError) {
-           if (validationError instanceof AIValidationError) {
-             logError(validationError, {
-               component: 'geminiService',
-               action: 'analyzeBusinessData',
-               phase: 'response_validation',
-               attempt: attempt + 1,
-               expectedType,
-               validationDetails: validationError.toDetailedString(),
-             });
-             throw validationError;
-           }
-           logError(validationError instanceof Error ? validationError : new Error('Unknown validation error'), {
-             component: 'geminiService',
-             action: 'analyzeBusinessData',
-             phase: 'response_validation',
-             attempt: attempt + 1,
-             expectedType,
-           });
-           throw validationError;
-         }
+        // ✅ VALIDAR respuesta de la IA con Zod
+        let validatedResponse: ValidatedAIResponse;
+        try {
+          validatedResponse = validateAIResponse(rawResult, expectedType);
+          logDebug('Respuesta validada exitosamente', {
+            component: 'geminiService',
+            action: 'analyzeBusinessData',
+            phase: 'response_validation',
+            attempt: attempt + 1,
+            expectedType,
+            success: validatedResponse.success,
+          });
+        } catch (validationError) {
+          if (validationError instanceof AIValidationError) {
+            logError(validationError, {
+              component: 'geminiService',
+              action: 'analyzeBusinessData',
+              phase: 'response_validation',
+              attempt: attempt + 1,
+              expectedType,
+              validationDetails: validationError.toDetailedString(),
+            });
+            throw validationError;
+          }
+          logError(validationError instanceof Error ? validationError : new Error('Unknown validation error'), {
+            component: 'geminiService',
+            action: 'analyzeBusinessData',
+            phase: 'response_validation',
+            attempt: attempt + 1,
+            expectedType,
+          });
+          throw validationError;
+        }
 
         // Si la respuesta es exitosa, procesar y sanitizar
         if (validatedResponse.success) {
+          if (!validatedResponse.data) {
+            throw new Error('La respuesta fue exitosa pero no contiene datos');
+          }
+
           // Extraer contenido para sanitización
           let contentToSanitize: string;
-          
+
           if (expectedType === 'combined') {
             const combinedData = validatedResponse as CombinedAnalysisData;
-            contentToSanitize = combinedData.data.executiveSummary;
+            // Assert data existence since we checked validatedResponse.data above
+            contentToSanitize = combinedData.data!.executiveSummary;
           } else if (expectedType === 'financial') {
             const financialData = validatedResponse as FinancialAnalysisData;
-            contentToSanitize = financialData.data.summary;
+            contentToSanitize = financialData.data!.summary;
           } else {
             const reservationData = validatedResponse as ReservationAnalysisData;
-            contentToSanitize = reservationData.data.summary;
+            contentToSanitize = reservationData.data!.summary;
           }
 
           // Sanitizar contenido
@@ -907,88 +930,88 @@ export const analyzeBusinessData = async (
         lastAborted = true;
       }
 
-       // Si es un error de validación, no reintentar
-       if (error instanceof AIValidationError) {
-         logError(error, {
-           component: 'geminiService',
-           action: 'analyzeBusinessData',
-           phase: 'validation_error',
-           attempt: attempt + 1,
-           expectedType,
-           errorType: 'AIValidationError',
-         });
-         return {
-           success: false,
-           error: `La respuesta de la IA no es válida: ${error.message}`,
-         };
-       }
+      // Si es un error de validación, no reintentar
+      if (error instanceof AIValidationError) {
+        logError(error, {
+          component: 'geminiService',
+          action: 'analyzeBusinessData',
+          phase: 'validation_error',
+          attempt: attempt + 1,
+          expectedType,
+          errorType: 'AIValidationError',
+        });
+        return {
+          success: false,
+          error: `La respuesta de la IA no es válida: ${error.message}`,
+        };
+      }
 
-       logError(lastError, {
-         component: 'geminiService',
-         action: 'analyzeBusinessData',
-         phase: 'retry_attempt',
-         attempt: attempt + 1,
-         totalAttempts: config.maxRetries,
-         errorMessage,
-         aborted: lastAborted,
-       });
+      logError(lastError, {
+        component: 'geminiService',
+        action: 'analyzeBusinessData',
+        phase: 'retry_attempt',
+        attempt: attempt + 1,
+        totalAttempts: config.maxRetries,
+        errorMessage,
+        aborted: lastAborted,
+      });
 
-       // Si es el último intento, retornar error
-       if (attempt === config.maxRetries - 1) {
-         break;
-       }
+      // Si es el último intento, retornar error
+      if (attempt === config.maxRetries - 1) {
+        break;
+      }
 
-       // Reintento con backoff exponencial
-       const backoffDelay = getExponentialBackoffDelay(attempt);
-       config.onRetry(attempt + 1, errorMessage);
-       
-       logInfo(`Reintentando análisis en ${backoffDelay.toFixed(0)}ms`, {
-         component: 'geminiService',
-         action: 'analyzeBusinessData',
-         phase: 'retry_delay',
-         attempt: attempt + 1,
-         backoffDelay,
-       });
-       
-       await delay(backoffDelay);
+      // Reintento con backoff exponencial
+      const backoffDelay = getExponentialBackoffDelay(attempt);
+      config.onRetry(attempt + 1, errorMessage);
+
+      logInfo(`Reintentando análisis en ${backoffDelay.toFixed(0)}ms`, {
+        component: 'geminiService',
+        action: 'analyzeBusinessData',
+        phase: 'retry_delay',
+        attempt: attempt + 1,
+        backoffDelay,
+      });
+
+      await delay(backoffDelay);
     }
   }
 
-   // Retornar error final con contexto
-   const finalErrorMessage = lastError?.message || 'Error desconocido';
-   
-   let userFriendlyError: string;
-   let errorType: string;
-   
-   if (lastAborted) {
-     userFriendlyError = `Solicitud cancelada o timeout (${config.timeoutMs / 1000}s). Intenta nuevamente.`;
-     errorType = 'TIMEOUT';
-   } else if (finalErrorMessage.includes('Failed to fetch')) {
-     userFriendlyError = 'No se puede conectar con el servidor. Verifica que esté ejecutándose.';
-     errorType = 'NETWORK_ERROR';
-   } else if (finalErrorMessage.includes('AbortError')) {
-     userFriendlyError = 'La solicitud fue cancelada por el usuario.';
-     errorType = 'USER_CANCELLED';
-   } else {
-     userFriendlyError = `Error después de ${config.maxRetries} intentos: ${finalErrorMessage}`;
-     errorType = 'MAX_RETRIES_EXCEEDED';
-   }
+  // Retornar error final con contexto
+  const finalErrorMessage = lastError?.message || 'Error desconocido';
 
-   logError(new Error(finalErrorMessage), {
-     component: 'geminiService',
-     action: 'analyzeBusinessData',
-     phase: 'final_error',
-     errorType,
-     maxRetries: config.maxRetries,
-     timeoutMs: config.timeoutMs,
-     finalAttempt: config.maxRetries,
-     userFriendlyError,
-   });
+  let userFriendlyError: string;
+  let errorType: string;
 
-   return {
-     success: false,
-     error: userFriendlyError,
-   };
+  if (lastAborted) {
+    userFriendlyError = `Solicitud cancelada o timeout (${config.timeoutMs / 1000}s). Intenta nuevamente.`;
+    errorType = 'TIMEOUT';
+  } else if (finalErrorMessage.includes('Failed to fetch')) {
+    userFriendlyError = 'No se puede conectar con el servidor. Verifica que esté ejecutándose.';
+    errorType = 'NETWORK_ERROR';
+  } else if (finalErrorMessage.includes('AbortError')) {
+    userFriendlyError = 'La solicitud fue cancelada por el usuario.';
+    errorType = 'USER_CANCELLED';
+  } else {
+    userFriendlyError = `Error después de ${config.maxRetries} intentos: ${finalErrorMessage}`;
+    errorType = 'MAX_RETRIES_EXCEEDED';
+  }
+
+  logError(new Error(finalErrorMessage), {
+    component: 'geminiService',
+    action: 'analyzeBusinessData',
+    phase: 'final_error',
+    errorType,
+    maxRetries: config.maxRetries,
+    timeoutMs: config.timeoutMs,
+    finalAttempt: config.maxRetries,
+    userFriendlyError,
+  });
+
+  return {
+    success: false,
+    error: userFriendlyError,
+  };
 };
 
 // Named exports

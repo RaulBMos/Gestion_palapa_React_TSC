@@ -17,7 +17,7 @@ export const BarChartSkeleton: React.FC = () => (
       <div className="h-6 bg-slate-200 rounded w-48 mb-6"></div>
       <div className="h-64 w-full space-y-4">
         <div className="flex items-end space-x-2 h-48">
-          {[...Array(6)].map((_unused, i) => (
+          {[...Array(6)].map((_, i) => (
             <div key={i} className="flex-1">
               <div className="space-y-2">
                 <div className="h-20 bg-slate-200 rounded-t"></div>
@@ -27,7 +27,7 @@ export const BarChartSkeleton: React.FC = () => (
           ))}
         </div>
         <div className="flex space-x-2">
-          {[...Array(6)].map((_unused, i) => (
+          {[...Array(6)].map((_, i) => (
             <div key={i} className="flex-1 h-3 bg-slate-200 rounded"></div>
           ))}
         </div>
@@ -49,7 +49,7 @@ export const PieChartSkeleton: React.FC = () => (
         </div>
       </div>
       <div className="mt-4 space-y-2">
-        {[...Array(4)].map((_unused, i) => (
+        {[...Array(4)].map((_, i) => (
           <div key={i} className="flex items-center space-x-2">
             <div className="w-3 h-3 bg-slate-200 rounded-full"></div>
             <div className="h-3 bg-slate-200 rounded flex-1"></div>

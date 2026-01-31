@@ -27,21 +27,21 @@ interface Reservation {
   isArchived?: boolean;
 }
 
-enum TransactionType { 
-  INCOME = 'Ingreso', 
-  EXPENSE = 'Gasto' 
+enum TransactionType {
+  INCOME = 'Ingreso',
+  EXPENSE = 'Gasto'
 }
 
-enum PaymentMethod { 
-  CASH = 'Efectivo', 
-  TRANSFER = 'Transferencia' 
+enum PaymentMethod {
+  CASH = 'Efectivo',
+  TRANSFER = 'Transferencia'
 }
 
-enum ReservationStatus { 
-  INFORMATION = 'Información', 
-  CONFIRMED = 'Confirmada', 
-  COMPLETED = 'Completada', 
-  CANCELLED = 'Cancelada' 
+enum ReservationStatus {
+  INFORMATION = 'Información',
+  CONFIRMED = 'Confirmada',
+  COMPLETED = 'Completada',
+  CANCELLED = 'Cancelada'
 }
 
 // Helper functions to convert validated data
@@ -72,9 +72,9 @@ const convertToReservation = (validated: ValidatedReservation): Reservation => {
     children: validated.children,
     totalAmount: validated.totalAmount,
     status: validated.status === 'Información' ? ReservationStatus.INFORMATION :
-             validated.status === 'Confirmada' ? ReservationStatus.CONFIRMED :
-             validated.status === 'Completada' ? ReservationStatus.COMPLETED :
-             ReservationStatus.CANCELLED,
+      validated.status === 'Confirmada' ? ReservationStatus.CONFIRMED :
+        validated.status === 'Completada' ? ReservationStatus.COMPLETED :
+          ReservationStatus.CANCELLED,
   };
   if (validated.isArchived !== undefined) {
     result.isArchived = validated.isArchived;
@@ -159,7 +159,7 @@ Incluye:
 
     // 6. Inicializar cliente Gemini con API key del entorno
     const geminiApiKey = process.env.GEMINI_API_KEY;
-    
+
     if (!geminiApiKey) {
       res.status(500).json({
         success: false,
@@ -176,22 +176,24 @@ Incluye:
         model: 'gemini-1.5-flash',
         contents: prompt,
       }),
-      new Promise((_, reject) =>
+      new Promise<never>((_, reject) =>
         setTimeout(
           () => reject(new Error('Timeout excedido (30s)')),
           30000
         )
       ),
-    ] as any);
+    ]);
 
-    if (!response?.text) {
+    const result = response as { text: string };
+
+    if (!result?.text) {
       throw new Error('Respuesta vacía de Gemini');
     }
 
     // 8. Retornar respuesta exitosa
     res.status(200).json({
       success: true,
-      data: response.text,
+      data: result.text,
     });
 
   } catch (error) {

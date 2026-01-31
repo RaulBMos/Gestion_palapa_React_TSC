@@ -8,7 +8,7 @@ interface PerformanceMetrics {
 
 class PerformanceMonitor {
   private metrics: PerformanceMetrics = {};
-  private isDevelopment = process.env.NODE_ENV === 'development';
+  private isDevelopment = import.meta.env.DEV;
 
   constructor() {
     this.initializeMetrics();
@@ -54,12 +54,12 @@ class PerformanceMonitor {
     };
 
     console.log('Analytics Event:', analyticsData);
-    
+
     // Mock analytics service - replace with real analytics implementation
     this.mockAnalyticsService(analyticsData);
   }
 
-  private mockAnalyticsService(data: any) {
+  private mockAnalyticsService(data: unknown) {
     // Simulate network delay
     setTimeout(() => {
       console.log('✅ Analytics data sent:', data);

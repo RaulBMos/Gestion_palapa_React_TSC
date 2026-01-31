@@ -1,23 +1,35 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useDashboardLogic } from '../../../hooks/useDashboardLogic';
-import { Transaction, Reservation, TransactionType, PaymentMethod, ReservationStatus } from '../../types';
+import { useDashboardLogic } from '@/hooks/useDashboardLogic';
+import { Transaction, Reservation, TransactionType, PaymentMethod, ReservationStatus } from '@/types';
 
 // Mock del servicio de Gemini
-vi.mock('../../../services/geminiService', () => ({
+vi.mock('@/services/geminiService', () => ({
   analyzeBusinessData: vi.fn(),
 }));
 
 // Mock del logger
-vi.mock('../../../utils/logger', () => ({
-  logError: vi.fn(),
-  logInfo: vi.fn(),
-  logWarning: vi.fn(),
-  logDebug: vi.fn(),
-}));
+vi.mock('@/utils/logger', () => {
+  const mockLogger = {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+    networkError: vi.fn(),
+    quotaExceeded: vi.fn(),
+  };
+  return {
+    logger: mockLogger,
+    logError: mockLogger.error,
+    logInfo: mockLogger.info,
+    logWarning: mockLogger.warn,
+    logDebug: mockLogger.debug,
+    default: mockLogger,
+  };
+});
 
 // Mock de funciones de cálculo
-vi.mock('../../../utils/calculations', () => ({
+vi.mock('@/utils/calculations', () => ({
   calculateMonthlyOccupancy: vi.fn(() => 75),
   calculateADR: vi.fn(() => 150),
   calculateAverageStayDuration: vi.fn(() => 3.5),
@@ -30,14 +42,14 @@ vi.mock('../../../utils/calculations', () => ({
   })),
 }));
 
-vi.mock('../../../src/utils/transformers', () => ({
+vi.mock('@/utils/transformers', () => ({
   mapTransactionsToMonthlyData: vi.fn(() => []),
   mapTransactionsToExpenseCategories: vi.fn(() => []),
 }));
 
 // Importar los mocks después de su declaración
-import { analyzeBusinessData } from '../../../services/geminiService';
-import { logError, logInfo, logWarning, logDebug } from '../../../utils/logger';
+import { analyzeBusinessData } from '@/services/geminiService';
+import { logError, logInfo, logWarning, logDebug } from '@/utils/logger';
 
 describe('useDashboardLogic', () => {
   const mockTransactions: Transaction[] = [

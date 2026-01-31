@@ -46,14 +46,14 @@ export const requestLogger = (
   next: NextFunction
 ): void => {
   const start = Date.now();
-  
+
   res.on('finish', () => {
     const duration = Date.now() - start;
     console.log(
       `[${new Date().toISOString()}] ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`
     );
   });
-  
+
   next();
 };
 
@@ -61,7 +61,7 @@ export const requestLogger = (
  * Middleware para manejo de errores global
  */
 export const errorHandler = (
-  error: any,
+  error: Error,
   _req: Request,
   res: Response,
   _next: NextFunction

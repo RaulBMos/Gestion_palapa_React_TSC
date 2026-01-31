@@ -1,4 +1,4 @@
-import { Transaction, MonthlyData, ExpenseCategory, TransactionType } from '../types';
+import { Transaction, MonthlyData, ExpenseCategory, TransactionType } from '@/types';
 
 /**
  * Agrupa transacciones por mes y calcula ingresos y gastos mensuales
@@ -17,7 +17,7 @@ import { Transaction, MonthlyData, ExpenseCategory, TransactionType } from '../t
 export const mapTransactionsToMonthlyData = (transactions: Transaction[]): MonthlyData[] => {
   // Objeto para acumular datos por mes
   const monthlyData: Record<string, { ingresos: number; gastos: number }> = {};
-  
+
   // Agrupar transacciones por mes
   transactions.forEach((transaction) => {
     // Formato: "ene 2024", "feb 2024", etc.
@@ -25,12 +25,12 @@ export const mapTransactionsToMonthlyData = (transactions: Transaction[]): Month
       year: 'numeric',
       month: 'short',
     });
-    
+
     // Inicializar mes si no existe
     if (!monthlyData[monthKey]) {
       monthlyData[monthKey] = { ingresos: 0, gastos: 0 };
     }
-    
+
     // Acumular según tipo de transacción
     if (transaction.type === TransactionType.INCOME) {
       monthlyData[monthKey].ingresos += transaction.amount;
@@ -67,7 +67,7 @@ export const mapTransactionsToMonthlyData = (transactions: Transaction[]): Month
 export const mapTransactionsToExpenseCategories = (transactions: Transaction[]): ExpenseCategory[] => {
   // Objeto para acumular totales por categoría
   const categoryTotals: Record<string, number> = {};
-  
+
   // Filtrar solo gastos y agrupar por categoría
   transactions
     .filter(transaction => transaction.type === TransactionType.EXPENSE)

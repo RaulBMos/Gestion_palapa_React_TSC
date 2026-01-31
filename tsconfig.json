@@ -28,7 +28,7 @@
     "exactOptionalPropertyTypes": false,
     "paths": {
       "@/*": [
-        "./*"
+        "./src/*"
       ]
     },
     "allowImportingTsExtensions": true,

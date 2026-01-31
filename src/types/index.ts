@@ -1,3 +1,5 @@
+import { type ReactNode } from 'react';
+
 export enum PaymentMethod {
   CASH = 'Efectivo',
   TRANSFER = 'Transferencia',
@@ -59,6 +61,71 @@ export interface MonthlyData {
 export interface ExpenseCategory {
   name: string;
   value: number;
+}
+
+// Hook interfaces para romper dependencias circulares
+export interface DashboardLogicState {
+  aiAnalysis: string | null;
+  loadingAi: boolean;
+  aiError: string | null;
+  retryAttempt: number;
+  isAnalysisDisabled: boolean;
+  countdownSeconds: number;
+  showFallback: boolean;
+  failureCount: number;
+  isSystemDegraded: boolean;
+}
+
+export interface DashboardLogicData {
+  financialBalance: {
+    totalIncome: number;
+    totalExpenses: number;
+    netProfit: number;
+    profitMargin: number;
+  };
+  kpiData: {
+    occupancyRate: string;
+    adr: string;
+    avgStayDuration: string;
+    revPar: string;
+  };
+  dataByMonth: MonthlyData[];
+  expenseCategories: ExpenseCategory[];
+}
+
+export interface DashboardLogicActions {
+  handleAiAnalysis: () => Promise<void>;
+  handleCancelAiAnalysis: () => void;
+  clearAiError: () => void;
+  handleManualInput: (manualText: string) => Promise<void>;
+  handleRetryAnalysis: () => void;
+}
+
+export interface CalendarState {
+  currentMonth: Date;
+  selectedDate: string | null;
+  pickerMonth: Date;
+}
+
+export interface ReservationFormState {
+  editingId: string | null;
+  showForm: boolean;
+  newRes: Partial<Reservation>;
+  filter: string;
+  viewMode: 'list' | 'calendar';
+  listTab: 'active' | 'history';
+}
+
+export interface ReservationCalendarHelpers {
+  getDateString: (date: Date) => string;
+  formatDateForDisplay: (dateStr: string | undefined) => string;
+  getDaysInMonth: (date: Date) => (Date | null)[];
+  getOccupancy: (dateStr: string, excludeReservationId?: string) => {
+    occupiedCount: number;
+    activeReservations: Reservation[];
+  };
+  getClientName: (id: string, clients: Client[]) => string;
+  statusColor: (status: ReservationStatus) => string;
 }
 
 export interface FinancialData {
@@ -176,7 +243,7 @@ export interface FormState<T> {
 // Component props types
 export interface BaseComponentProps {
   className?: string;
-  children?: React.ReactNode;
+  children?: ReactNode;
   testId?: string;
 }
 
@@ -249,3 +316,5 @@ export interface StorageConfig {
   version: number;
   encrypt: boolean;
 }
+
+export * from './ai.schema';
