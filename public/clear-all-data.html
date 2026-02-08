@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpiar Datos - CasaGestión</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #666;
+            line-height: 1.6;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+        .data-preview {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ffeaa7;
+            margin-bottom: 20px;
+        }
+        .step {
+            background: #e7f3ff;
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Limpiar Datos de CasaGestión</h1>
+        <p>Esta herramienta eliminará todos los datos almacenados en tu navegador para la aplicación CasaGestión.</p>
+        
+        <div class="warning">
+            <strong>⚠️ Advertencia:</strong> Esta acción eliminará todos los clientes, reservaciones y transacciones almacenadas localmente. Esta acción no se puede deshacer.
+        </div>
+
+        <div id="currentData"></div>
+
+        <button onclick="clearAllData()">Limpiar Todos los Datos</button>
+        
+        <div id="status" class="status"></div>
+
+        <div class="step" style="margin-top: 30px;">
+            <strong>Después de limpiar:</strong><br>
+            1. Cierra esta pestaña<br>
+            2. Vuelve a la aplicación<br>
+            3. Recarga la página (F5 o Ctrl+R)
+        </div>
+    </div>
+
+    <script>
+        // Mostrar datos actuales
+        function showCurrentData() {
+            const clients = localStorage.getItem('cg_clients');
+            const reservations = localStorage.getItem('cg_reservations');
+            const transactions = localStorage.getItem('cg_transactions');
+            
+            let html = '<div class="data-preview">';
+            html += '<strong>Datos actuales en localStorage:</strong><br><br>';
+            
+            if (clients) {
+                const clientsData = JSON.parse(clients);
+                html += `📋 Clientes: ${clientsData.length} registros<br>`;
+            } else {
+                html += '📋 Clientes: 0 registros<br>';
+            }
+            
+            if (reservations) {
+                const reservationsData = JSON.parse(reservations);
+                html += `📅 Reservaciones: ${reservationsData.length} registros<br>`;
+            } else {
+                html += '📅 Reservaciones: 0 registros<br>';
+            }
+            
+            if (transactions) {
+                const transactionsData = JSON.parse(transactions);
+                html += `💰 Transacciones: ${transactionsData.length} registros<br>`;
+            } else {
+                html += '💰 Transacciones: 0 registros<br>';
+            }
+            
+            html += '</div>';
+            document.getElementById('currentData').innerHTML = html;
+        }
+
+        // Limpiar todos los datos
+        function clearAllData() {
+            const statusDiv = document.getElementById('status');
+            
+            try {
+                // Limpiar localStorage
+                localStorage.removeItem('cg_clients');
+                localStorage.removeItem('cg_reservations');
+                localStorage.removeItem('cg_transactions');
+                
+                // También limpiar cualquier otra clave relacionada
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('cg_')) {
+                        keysToRemove.push(key);
+                    }
+                }
+                
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+                
+                // Mostrar mensaje de éxito
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `
+                    <strong>✅ ¡Datos eliminados exitosamente!</strong><br><br>
+                    Se eliminaron:<br>
+                    • Todos los clientes<br>
+                    • Todas las reservaciones<br>
+                    • Todas las transacciones<br>
+                    • Todas las configuraciones locales<br><br>
+                    <strong>Ahora cierra esta pestaña y recarga la aplicación principal.</strong>
+                `;
+                
+                // Actualizar vista de datos
+                showCurrentData();
+                
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.style.background = '#f8d7da';
+                statusDiv.style.color = '#721c24';
+                statusDiv.style.border = '1px solid #f5c6cb';
+                statusDiv.style.display = 'block';
+                statusDiv.innerHTML = `
+                    <strong>❌ Error al limpiar datos:</strong><br>
+                    ${error.message}
+                `;
+            }
+        }
+
+        // Mostrar datos al cargar la página
+        showCurrentData();
+    </script>
+</body>
+</html>

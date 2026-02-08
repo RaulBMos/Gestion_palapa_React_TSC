@@ -12,8 +12,8 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 });
 
-// Mock de setTimeout/setInterval para tests
-vi.useFakeTimers();
+// Mock de setTimeout/setInterval para tests - Deshabilitado globalmente para evitar conflictos con async/await
+// vi.useFakeTimers();
 
 // Mock de matchMedia
 Object.defineProperty(window, 'matchMedia', {

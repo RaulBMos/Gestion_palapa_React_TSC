@@ -1,15 +1,14 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Client,
   Reservation,
   Transaction,
   ReservationStatus,
-  TransactionType,
-  PaymentMethod,
   DataContextType,
 } from '@/types';
-import { useSafeLocalStorage } from '@/hooks/useSafeLocalStorage';
 import { DataContext } from './DataContext';
+import { StorageAdapter } from '@/services/storageAdapter';
+import { logError, logInfo } from '@/utils/logger';
 
 // ============================================================================
 // CONSTANTES
@@ -17,127 +16,8 @@ import { DataContext } from './DataContext';
 
 const TOTAL_CABINS = 3;
 
-const INITIAL_CLIENTS: Client[] = [
-  {
-    id: '1',
-    name: 'Juan Pérez',
-    email: 'juan@example.com',
-    phone: '+52 555 123 4567',
-  },
-  {
-    id: '2',
-    name: 'Maria Lopez',
-    email: 'maria@example.com',
-    phone: '+52 555 987 6543',
-  },
-  {
-    id: '3',
-    name: 'Carlos Ruiz',
-    email: 'carlos@example.com',
-    phone: '+52 555 111 2222',
-  },
-];
-
-const INITIAL_RESERVATIONS: Reservation[] = [
-  {
-    id: '101',
-    clientId: '1',
-    cabinCount: 1,
-    startDate: '2024-03-10',
-    endDate: '2024-03-15',
-    adults: 2,
-    children: 0,
-    totalAmount: 5000,
-    status: ReservationStatus.COMPLETED,
-  },
-  {
-    id: '102',
-    clientId: '2',
-    cabinCount: 2,
-    startDate: '2024-04-01',
-    endDate: '2024-04-05',
-    adults: 4,
-    children: 2,
-    totalAmount: 8000,
-    status: ReservationStatus.CONFIRMED,
-  },
-  {
-    id: '103',
-    clientId: '3',
-    cabinCount: 1,
-    startDate: '2024-05-20',
-    endDate: '2024-05-25',
-    adults: 2,
-    children: 0,
-    totalAmount: 6000,
-    status: ReservationStatus.INFORMATION,
-  },
-];
-
-const INITIAL_TRANSACTIONS: Transaction[] = [
-  {
-    id: 't1',
-    date: '2024-03-10',
-    amount: 5000,
-    type: TransactionType.INCOME,
-    category: 'Renta',
-    description: 'Reserva #101',
-    paymentMethod: PaymentMethod.TRANSFER,
-    reservationId: '101',
-  },
-  {
-    id: 't2',
-    date: '2024-03-01',
-    amount: 1500,
-    type: TransactionType.EXPENSE,
-    category: 'Mantenimiento',
-    description: 'Reparación AC',
-    paymentMethod: PaymentMethod.CASH,
-  },
-  {
-    id: 't3',
-    date: '2024-03-20',
-    amount: 500,
-    type: TransactionType.EXPENSE,
-    category: 'Limpieza',
-    description: 'Limpieza profunda',
-    paymentMethod: PaymentMethod.CASH,
-  },
-  {
-    id: 't4',
-    date: '2024-04-01',
-    amount: 4000,
-    type: TransactionType.INCOME,
-    category: 'Renta',
-    description: 'Anticipo Reserva #102',
-    paymentMethod: PaymentMethod.TRANSFER,
-    reservationId: '102',
-  },
-  {
-    id: 't5',
-    date: '2024-04-02',
-    amount: 800,
-    type: TransactionType.EXPENSE,
-    category: 'Servicios',
-    description: 'Pago Internet',
-    paymentMethod: PaymentMethod.TRANSFER,
-  },
-];
-
 // ============================================================================
-// TIPOS
-// ============================================================================
-
-// Use the DataContextType from types/index.ts
-// Use DataContextType from types/index.ts
-export type { DataContextType };
-
-// ============================================================================
-// PROVEEDOR
-// ============================================================================
-
-// ============================================================================
-// PROVEEDOR
+// PROVEEDOR CON SUPABASE/LOCALSTORAGE
 // ============================================================================
 
 interface DataProviderProps {
@@ -145,104 +25,177 @@ interface DataProviderProps {
 }
 
 export function DataProvider({ children }: DataProviderProps) {
-  // ✅ Estado usando localStorage seguro
-  const [clients, setClients] = useSafeLocalStorage<Client[]>(
-    'cg_clients',
-    INITIAL_CLIENTS
-  );
-  const [reservations, setReservations] = useSafeLocalStorage<Reservation[]>(
-    'cg_reservations',
-    INITIAL_RESERVATIONS
-  );
-  const [transactions, setTransactions] = useSafeLocalStorage<Transaction[]>(
-    'cg_transactions',
-    INITIAL_TRANSACTIONS
-  );
+  const [clients, setClients] = useState<Client[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // ✅ Cargar datos al iniciar
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [clientsData, reservationsData, transactionsData] = await Promise.all([
+        StorageAdapter.getClients(),
+        StorageAdapter.getReservations(),
+        StorageAdapter.getTransactions(),
+      ]);
+
+      setClients(clientsData);
+      setReservations(reservationsData);
+      setTransactions(transactionsData);
+
+      logInfo('Data loaded successfully', {
+        clients: clientsData.length,
+        reservations: reservationsData.length,
+        transactions: transactionsData.length,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error loading data';
+      setError(errorMessage);
+      logError(err as Error, { component: 'DataProvider', action: 'loadData' });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // ✅ ACCIONES - CLIENTES
-  const addClient = useCallback((client: Omit<Client, 'id'>) => {
-    const newClient: Client = {
-      ...client,
-      id: `client-${Date.now()}`,
-    };
-    setClients([...clients, newClient]);
-  }, [clients, setClients]);
+  const addClient = useCallback(async (client: Omit<Client, 'id'>) => {
+    try {
+      const newClient = await StorageAdapter.addClient(client);
+      setClients((prev) => [...prev, newClient]);
+      logInfo('Client added', { id: newClient.id });
+    } catch (err) {
+      logError(err as Error, { component: 'DataProvider', action: 'addClient' });
+      throw err;
+    }
+  }, []);
 
-  const editClient = useCallback((updatedClient: Client) => {
-    setClients(clients.map((c: Client) => (c.id === updatedClient.id ? updatedClient : c)));
-  }, [clients, setClients]);
+  const editClient = useCallback(async (updatedClient: Client) => {
+    try {
+      await StorageAdapter.updateClient(updatedClient);
+      setClients((prev) => prev.map((c) => (c.id === updatedClient.id ? updatedClient : c)));
+      logInfo('Client updated', { id: updatedClient.id });
+    } catch (err) {
+      logError(err as Error, { component: 'DataProvider', action: 'editClient' });
+      throw err;
+    }
+  }, []);
 
-  const deleteClient = useCallback((id: string) => {
-    setClients(clients.filter((c: Client) => c.id !== id));
-  }, [clients, setClients]);
-
-  // ✅ ACCIONES - TRANSACCIONES (helper)
-  const addTransaction = useCallback((transaction: Omit<Transaction, 'id'>) => {
-    const newTransaction: Transaction = {
-      ...transaction,
-      id: `tx-${Date.now()}`,
-    };
-    setTransactions([...transactions, newTransaction]);
-  }, [transactions, setTransactions]);
+  const deleteClient = useCallback(async (id: string) => {
+    try {
+      await StorageAdapter.deleteClient(id);
+      setClients((prev) => prev.filter((c) => c.id !== id));
+      logInfo('Client deleted', { id });
+    } catch (err) {
+      logError(err as Error, { component: 'DataProvider', action: 'deleteClient' });
+      throw err;
+    }
+  }, []);
 
   // ✅ ACCIONES - RESERVACIONES
-  const addReservation = useCallback(
-    (reservation: Omit<Reservation, 'id'>) => {
-      const newReservation: Reservation = {
-        ...reservation,
-        id: `res-${Date.now()}`,
-      };
-      setReservations([...reservations, newReservation]);
+  const addReservation = useCallback(async (reservation: Omit<Reservation, 'id'>) => {
+    try {
+      const newReservation = await StorageAdapter.addReservation(reservation);
+      setReservations((prev) => [...prev, newReservation]);
+      logInfo('Reservation added', { id: newReservation.id });
+    } catch (err) {
+      logError(err as Error, { component: 'DataProvider', action: 'addReservation' });
+      throw err;
+    }
+  }, []);
 
-      // Crear transacción automáticamente si está confirmada
-      if (newReservation.status === ReservationStatus.CONFIRMED) {
-        const transaction: Transaction = {
-          id: `t-${Date.now()}`,
-          date: new Date().toISOString().split('T')[0]!, // YYYY-MM-DD
-          amount: newReservation.totalAmount,
-          type: TransactionType.INCOME,
-          category: 'Renta',
-          description: `Reserva nueva ${newReservation.id || 'unknown'} (${newReservation.cabinCount} cabañas)`,
-          paymentMethod: PaymentMethod.TRANSFER,
-          ...(newReservation.id && { reservationId: newReservation.id }),
-        };
-        addTransaction(transaction);
-      }
-    },
-    [reservations, setReservations, addTransaction]
-  );
-
-  const editReservation = useCallback((updatedReservation: Reservation) => {
-    setReservations(
-      reservations.map((r: Reservation) => (r.id === updatedReservation.id ? updatedReservation : r))
-    );
-  }, [reservations, setReservations]);
-
-  const updateReservationStatus = useCallback(
-    (id: string, status: ReservationStatus) => {
-      setReservations(
-        reservations.map((r: Reservation) => (r.id === id ? { ...r, status } : r))
+  const editReservation = useCallback(async (updatedReservation: Reservation) => {
+    try {
+      await StorageAdapter.updateReservation(updatedReservation);
+      setReservations((prev) =>
+        prev.map((r) => (r.id === updatedReservation.id ? updatedReservation : r))
       );
-    },
-    [reservations, setReservations]
-  );
+      logInfo('Reservation updated', { id: updatedReservation.id });
+    } catch (err) {
+      logError(err as Error, { component: 'DataProvider', action: 'editReservation' });
+      throw err;
+    }
+  }, []);
 
-  const archiveReservation = useCallback((id: string) => {
-    setReservations(
-      reservations.map((r: Reservation) => (r.id === id ? { ...r, isArchived: true } : r))
-    );
-  }, [reservations, setReservations]);
+  const updateReservationStatus = useCallback(async (id: string, status: ReservationStatus) => {
+    try {
+      await StorageAdapter.updateReservationStatus(id, status);
+      setReservations((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
+      logInfo('Reservation status updated', { id, status });
+    } catch (err) {
+      logError(err as Error, { component: 'DataProvider', action: 'updateReservationStatus' });
+      throw err;
+    }
+  }, []);
+
+  const archiveReservation = useCallback(async (id: string) => {
+    try {
+      await StorageAdapter.archiveReservation(id);
+      setReservations((prev) => prev.map((r) => (r.id === id ? { ...r, isArchived: true } : r)));
+      logInfo('Reservation archived', { id });
+    } catch (err) {
+      logError(err as Error, { component: 'DataProvider', action: 'archiveReservation' });
+      throw err;
+    }
+  }, []);
+
+  const deleteReservation = useCallback(async (id: string) => {
+    try {
+      await StorageAdapter.deleteReservation(id);
+      setReservations((prev) => prev.filter((r) => r.id !== id));
+      logInfo('Reservation deleted', { id });
+    } catch (err) {
+      logError(err as Error, { component: 'DataProvider', action: 'deleteReservation' });
+      throw err;
+    }
+  }, []);
 
   // ✅ ACCIONES - TRANSACCIONES
-  const editTransaction = useCallback((updatedTransaction: Transaction) => {
-    setTransactions(
-      transactions.map((t: Transaction) => (t.id === updatedTransaction.id ? updatedTransaction : t))
-    );
-  }, [transactions, setTransactions]);
+  const addTransaction = useCallback(async (transaction: Omit<Transaction, 'id'>) => {
+    try {
+      const newTransaction = await StorageAdapter.addTransaction(transaction);
+      setTransactions((prev) => [...prev, newTransaction]);
+      logInfo('Transaction added', { id: newTransaction.id });
+    } catch (err) {
+      logError(err as Error, { component: 'DataProvider', action: 'addTransaction' });
+      throw err;
+    }
+  }, []);
 
-  const deleteTransaction = useCallback((id: string) => {
-    setTransactions(transactions.filter((t: Transaction) => t.id !== id));
-  }, [transactions, setTransactions]);
+  const editTransaction = useCallback(async (updatedTransaction: Transaction) => {
+    try {
+      await StorageAdapter.updateTransaction(updatedTransaction);
+      setTransactions((prev) =>
+        prev.map((t) => (t.id === updatedTransaction.id ? updatedTransaction : t))
+      );
+      logInfo('Transaction updated', { id: updatedTransaction.id });
+    } catch (err) {
+      logError(err as Error, { component: 'DataProvider', action: 'editTransaction' });
+      throw err;
+    }
+  }, []);
+
+  const deleteTransaction = useCallback(async (id: string) => {
+    try {
+      await StorageAdapter.deleteTransaction(id);
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
+      logInfo('Transaction deleted', { id });
+    } catch (err) {
+      logError(err as Error, { component: 'DataProvider', action: 'deleteTransaction' });
+      throw err;
+    }
+  }, []);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
 
   // ✅ Valor del contexto memoizado
   const value = useMemo<DataContextType>(
@@ -252,8 +205,8 @@ export function DataProvider({ children }: DataProviderProps) {
       reservations,
       transactions,
       totalCabins: TOTAL_CABINS,
-      loading: false,
-      error: null,
+      loading,
+      error,
 
       // Acciones - Clientes
       addClient,
@@ -265,10 +218,7 @@ export function DataProvider({ children }: DataProviderProps) {
       addReservation,
       editReservation,
       updateReservation: editReservation,
-      deleteReservation: (id: string) => {
-        // Implementación simplificada - marcar como archivada
-        archiveReservation(id);
-      },
+      deleteReservation,
       updateReservationStatus,
       archiveReservation,
 
@@ -277,17 +227,17 @@ export function DataProvider({ children }: DataProviderProps) {
       editTransaction,
       updateTransaction: editTransaction,
       deleteTransaction,
-      refreshData: async () => {
-        // No-op for localStorage implementation
-      },
-      clearError: () => {
-        // No-op for localStorage implementation
-      },
+
+      // Utilidades
+      refreshData: loadData,
+      clearError,
     }),
     [
       clients,
       reservations,
       transactions,
+      loading,
+      error,
       addClient,
       editClient,
       deleteClient,
@@ -295,13 +245,14 @@ export function DataProvider({ children }: DataProviderProps) {
       editReservation,
       updateReservationStatus,
       archiveReservation,
+      deleteReservation,
       addTransaction,
       editTransaction,
       deleteTransaction,
+      loadData,
+      clearError,
     ]
   );
 
-  return (
-    <DataContext.Provider value={value}>{children}</DataContext.Provider>
-  );
+  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

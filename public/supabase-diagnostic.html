@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico Supabase - CasaGestión</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .test-section {
+            margin-bottom: 30px;
+        }
+
+        .test-section h2 {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .test-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .test-label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .test-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: #ffeaa7;
+            color: #856404;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .details pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .config-display {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .config-item {
+            margin: 8px 0;
+        }
+
+        .config-key {
+            color: #90cdf4;
+        }
+
+        .config-value {
+            color: #68d391;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Diagnóstico de Supabase</h1>
+            <p>Verifica la configuración y conexión con Supabase</p>
+        </div>
+
+        <div class="content">
+            <div id="configSection" class="test-section">
+                <h2>📋 Configuración</h2>
+                <div id="configDetails"></div>
+            </div>
+
+            <div id="testsSection" class="test-section">
+                <h2>🧪 Pruebas de Conexión</h2>
+                <div id="testResults"></div>
+            </div>
+
+            <button id="runTestsBtn" class="button" onclick="runAllTests()">
+                Ejecutar Diagnóstico
+            </button>
+
+            <div id="recommendations" style="margin-top: 30px;"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Importar configuración de Supabase
+        const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+        const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        const USE_SUPABASE = import.meta.env.VITE_USE_SUPABASE === 'true';
+
+        // Mostrar configuración
+        function displayConfig() {
+            const configDiv = document.getElementById('configDetails');
+
+            const config = {
+                'VITE_USE_SUPABASE': USE_SUPABASE ? '✅ true' : '❌ false',
+                'VITE_SUPABASE_URL': SUPABASE_URL || '❌ No configurado',
+                'VITE_SUPABASE_ANON_KEY': SUPABASE_ANON_KEY ? `✅ Configurado (${SUPABASE_ANON_KEY.length} caracteres)` : '❌ No configurado'
+            };
+
+            let html = '<div class="config-display">';
+            for (const [key, value] of Object.entries(config)) {
+                html += `<div class="config-item"><span class="config-key">${key}:</span> <span class="config-value">${value}</span></div>`;
+            }
+            html += '</div>';
+
+            configDiv.innerHTML = html;
+        }
+
+        // Ejecutar todas las pruebas
+        window.runAllTests = async function () {
+            const btn = document.getElementById('runTestsBtn');
+            const resultsDiv = document.getElementById('testResults');
+            const recommendationsDiv = document.getElementById('recommendations');
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Ejecutando pruebas...';
+            resultsDiv.innerHTML = '';
+            recommendationsDiv.innerHTML = '';
+
+            const tests = [];
+            const issues = [];
+
+            // Test 1: Verificar feature flag
+            tests.push({
+                label: 'Feature Flag (VITE_USE_SUPABASE)',
+                status: USE_SUPABASE ? 'success' : 'error',
+                message: USE_SUPABASE ? 'Habilitado' : 'Deshabilitado - Cambia a "true" en .env.local'
+            });
+
+            if (!USE_SUPABASE) {
+                issues.push('Supabase está deshabilitado. Cambia VITE_USE_SUPABASE=true en tu archivo .env.local');
+            }
+
+            // Test 2: Verificar URL
+            const urlValid = SUPABASE_URL && SUPABASE_URL !== 'your_supabase_url_here';
+            tests.push({
+                label: 'URL de Supabase',
+                status: urlValid ? 'success' : 'error',
+                message: urlValid ? SUPABASE_URL : 'No configurado o inválido'
+            });
+
+            if (!urlValid) {
+                issues.push('VITE_SUPABASE_URL no está configurado correctamente en .env.local');
+            }
+
+            // Test 3: Verificar API Key
+            const keyValid = SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== 'your_supabase_anon_key_here';
+            tests.push({
+                label: 'API Key de Supabase',
+                status: keyValid ? 'success' : 'error',
+                message: keyValid ? `Configurado (${SUPABASE_ANON_KEY.length} caracteres)` : 'No configurado o inválido'
+            });
+
+            if (!keyValid) {
+                issues.push('VITE_SUPABASE_ANON_KEY no está configurado correctamente en .env.local');
+            }
+
+            // Test 4: Verificar conexión (solo si todo está configurado)
+            if (USE_SUPABASE && urlValid && keyValid) {
+                try {
+                    const { createClient } = await import('@supabase/supabase-js');
+                    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+                    const { error } = await supabase.from('clients').select('count', { count: 'exact', head: true });
+
+                    tests.push({
+                        label: 'Conexión a Supabase',
+                        status: error ? 'error' : 'success',
+                        message: error ? `Error: ${error.message}` : 'Conexión exitosa'
+                    });
+
+                    if (error) {
+                        issues.push(`Error de conexión: ${error.message}`);
+
+                        if (error.message.includes('JWT')) {
+                            issues.push('Problema de autenticación. Verifica que tu API key sea correcta.');
+                        }
+                        if (error.message.includes('relation') || error.message.includes('table')) {
+                            issues.push('Las tablas no existen en Supabase. Ejecuta el schema.sql en tu proyecto de Supabase.');
+                        }
+                    }
+                } catch (error) {
+                    tests.push({
+                        label: 'Conexión a Supabase',
+                        status: 'error',
+                        message: `Error: ${error.message}`
+                    });
+                    issues.push(`Error al conectar: ${error.message}`);
+                }
+            } else {
+                tests.push({
+                    label: 'Conexión a Supabase',
+                    status: 'pending',
+                    message: 'No se puede probar - Configuración incompleta'
+                });
+            }
+
+            // Mostrar resultados
+            let html = '';
+            tests.forEach(test => {
+                html += `
+                    <div class="test-item">
+                        <span class="test-label">${test.label}</span>
+                        <span class="test-status status-${test.status}">${test.message}</span>
+                    </div>
+                `;
+            });
+            resultsDiv.innerHTML = html;
+
+            // Mostrar recomendaciones
+            if (issues.length > 0) {
+                let recHtml = '<div class="alert alert-error"><strong>⚠️ Problemas Encontrados:</strong><ul style="margin-top: 10px; margin-left: 20px;">';
+                issues.forEach(issue => {
+                    recHtml += `<li style="margin: 5px 0;">${issue}</li>`;
+                });
+                recHtml += '</ul></div>';
+
+                recHtml += `
+                    <div class="alert alert-warning">
+                        <strong>📝 Pasos para Solucionar:</strong>
+                        <ol style="margin-top: 10px; margin-left: 20px;">
+                            <li style="margin: 8px 0;">Verifica que tu archivo <code>.env.local</code> tenga las variables correctas</li>
+                            <li style="margin: 8px 0;">Asegúrate de que las tablas estén creadas en Supabase ejecutando <code>supabase/schema.sql</code></li>
+                            <li style="margin: 8px 0;">Verifica que tu proyecto de Supabase esté activo en <a href="https://app.supabase.com" target="_blank">app.supabase.com</a></li>
+                            <li style="margin: 8px 0;">Recarga la aplicación después de hacer cambios en <code>.env.local</code></li>
+                        </ol>
+                    </div>
+                `;
+                recommendationsDiv.innerHTML = recHtml;
+            } else {
+                recommendationsDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>✅ ¡Todo Configurado Correctamente!</strong><br>
+                        Tu aplicación está lista para guardar datos en Supabase.
+                    </div>
+                `;
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Ejecutar Diagnóstico Nuevamente';
+        };
+
+        // Mostrar configuración al cargar
+        displayConfig();
+    </script>
+</body>
+
+</html>

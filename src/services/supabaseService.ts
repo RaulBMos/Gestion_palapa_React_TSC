@@ -108,13 +108,19 @@ function mapDbTransactionToTransaction(dbTransaction: DbTransaction): Transactio
 
 /**
  * Get current user ID from Supabase auth
+ * @param mandatory - If true, throws an error if no user is found
  */
-async function getUserId(): Promise<string> {
+async function getUserId(mandatory = false): Promise<string | null> {
     const supabase = getSupabaseClient();
     const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error || !user) {
-        throw new SupabaseError('No authenticated user found', 'AUTH_ERROR');
+        if (mandatory) {
+            throw new SupabaseError('No authenticated user found', 'AUTH_ERROR');
+        }
+        // Return null instead of throwing - allows development without auth for some operations
+        logInfo('No authenticated user - using null for user_id (development mode)');
+        return null;
     }
 
     return user.id;
@@ -130,7 +136,7 @@ async function getUserId(): Promise<string> {
 export async function fetchClients(): Promise<Client[]> {
     const result = await withRetry(async () => {
         const supabase = getSupabaseClient();
-        await getUserId(); // Ensure session exists before querying
+        await getUserId(true); // Mandatory auth for fetching data
 
         const { data, error } = await supabase
             .from('clients')
@@ -170,7 +176,7 @@ export async function createClient(client: Omit<Client, 'id'>): Promise<Client> 
             email: client.email,
             phone: client.phone,
             notes: client.notes || null,
-            user_id: userId,
+            user_id: userId || undefined,
         };
 
         const { data, error } = await supabase
@@ -324,7 +330,7 @@ export async function createReservation(reservation: Omit<Reservation, 'id'>): P
             total_amount: reservation.totalAmount,
             status: reservation.status,
             is_archived: reservation.isArchived || false,
-            user_id: userId,
+            user_id: userId || undefined,
         };
 
         const { data, error } = await supabase
@@ -543,7 +549,7 @@ export async function createTransaction(transaction: Omit<Transaction, 'id'>): P
             description: transaction.description,
             payment_method: transaction.paymentMethod,
             reservation_id: transaction.reservationId || null,
-            user_id: userId,
+            user_id: userId || undefined,
         };
 
         const { data, error } = await supabase

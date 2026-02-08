@@ -136,13 +136,21 @@ describe('Financial Calculation Utils', () => {
     });
 
     it('should calculate partial month overlap correctly', () => {
-      // Reserva que empieza antes del mes y termina durante el mes
+      // Reserva que empieza antes del mes actual y termina durante el mes
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+
+      // Fecha que empieza en el mes anterior y termina en el mes actual
+      const lastMonth = new Date(currentYear, currentMonth - 1, 25);
+      const thisMonth = new Date(currentYear, currentMonth, 5);
+
       const overlappingReservation: Reservation = {
         id: 'overlap-1',
         clientId: 'c1',
         cabinCount: 1,
-        startDate: '2025-12-28',
-        endDate: '2026-01-05',
+        startDate: lastMonth.toISOString().split('T')[0] as string,
+        endDate: thisMonth.toISOString().split('T')[0] as string,
         adults: 2,
         children: 0,
         totalAmount: 1000,
@@ -154,12 +162,20 @@ describe('Financial Calculation Utils', () => {
     });
 
     it('should handle multi-cabin reservations correctly', () => {
+      // Usar fechas del mes actual
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+
+      const startDate = new Date(currentYear, currentMonth, 10);
+      const endDate = new Date(currentYear, currentMonth, 15);
+
       const multiCabinReservation: Reservation = {
         id: 'multi-cabin-1',
         clientId: 'c2',
         cabinCount: 2,
-        startDate: '2026-01-20',
-        endDate: '2026-01-25',
+        startDate: startDate.toISOString().split('T')[0] as string,
+        endDate: endDate.toISOString().split('T')[0] as string,
         adults: 4,
         children: 2,
         totalAmount: 2000,
@@ -168,7 +184,9 @@ describe('Financial Calculation Utils', () => {
 
       const result = calculateMonthlyOccupancy([multiCabinReservation], 3);
       // Debería contar 2 cabañas ocupadas
-      const expectedOccupancy = (2 * 6) / (31 * 3) * 100; // 6 días * 2 cabañas (inclusive count)
+      // 5 días (10-14 inclusive) * 2 cabañas = 10 noches-cabaña
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const expectedOccupancy = (2 * 5) / (daysInMonth * 3) * 100;
       expect(result).toBeCloseTo(expectedOccupancy, 1);
     });
 

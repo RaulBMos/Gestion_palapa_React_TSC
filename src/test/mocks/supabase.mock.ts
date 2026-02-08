@@ -79,11 +79,15 @@ export const createSupabaseMock = () => {
             error: null,
         }),
         getSession: vi.fn().mockResolvedValue({
-            data: { session: { user: { id: 'test-user-uuid' } } },
+            data: { session: null },
             error: null,
         }),
         signInWithPassword: vi.fn(),
+        signInWithOtp: vi.fn(),
+        signUp: vi.fn(),
+        verifyOtp: vi.fn(),
         signOut: vi.fn(),
+        onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
     };
 
     const mockFrom = vi.fn().mockReturnValue(createSupabaseQueryMock({ data: [] }));

@@ -182,5 +182,10 @@ export default defineConfig({
         }
       })
     ] : [])
-  ]
+  ],
+  server: {
+    allowedHosts: [
+      'intratelluric-babara-auxilytic.ngrok-free.dev' // Agregamos tu URL de ngrok
+    ]
+  }
 });

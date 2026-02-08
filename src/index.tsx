@@ -8,8 +8,12 @@ if (!rootElement) {
   throw new Error('No se encontró el elemento root');
 }
 
+import { BrowserRouter } from 'react-router-dom';
+
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <App />
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
   </React.StrictMode>
 );

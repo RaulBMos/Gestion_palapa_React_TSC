@@ -45,12 +45,12 @@ export const calculateMonthlyOccupancy = (
     const overlapEnd = resEnd > endOfMonth ? endOfMonth : resEnd;
 
     if (overlapStart < overlapEnd) {
-      // Calcular días correctamente (inclusive de start, exclusive de end)
+      // Calcular días correctamente (noches: inclusive de start, exclusive de end)
       const diffMs = overlapEnd.getTime() - overlapStart.getTime();
-      const overlapDays = Math.max(1, Math.floor(diffMs / (1000 * 3600 * 24) + 1));
+      const overlapDays = Math.floor(diffMs / (1000 * 3600 * 24));
 
-      // Verificar que realmente solapa con el mes actual
-      if (overlapStart <= endOfMonth && overlapEnd >= startOfMonth) {
+      // Verificar que realmente solapa con el mes actual y hay al menos 1 día/noche
+      if (overlapDays > 0 && overlapStart <= endOfMonth && overlapEnd >= startOfMonth) {
         occupiedNights += overlapDays * res.cabinCount;
       }
     }

@@ -1,245 +1,248 @@
 import React, { useState } from 'react';
-import { Client } from '@/types';
-import { Mail, Phone, User, Plus, Pencil, Trash2, X } from 'lucide-react';
 import { useData } from '@/hooks/useData';
+import { useAuth } from '@/contexts/AuthContext';
+import { Client } from '@/types';
+import {
+  Plus,
+  Search,
+  Mail,
+  Phone,
+  User,
+  Edit2,
+  Trash2,
+  X
+} from 'lucide-react';
 
-interface ClientsProps {
-  clients?: Client[];
-  addClient?: (c: Client) => void;
-  editClient?: (c: Client) => void;
-  deleteClient?: (id: string) => void;
-}
+export function Clients() {
+  const { clients, addClient, updateClient, deleteClient, loading } = useData();
+  const { isAdmin } = useAuth();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
 
-export const Clients: React.FC<ClientsProps> = (_props) => {
-  // ✅ Obtener datos del contexto (o usar props si se proporcionan para retrocompatibilidad)
-  const contextData = useData();
+  // Estado del formulario
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    notes: ''
+  });
 
-  const clients = _props.clients ?? contextData.clients;
-  const addClient = _props.addClient ?? contextData.addClient;
-  const editClient = _props.editClient ?? contextData.updateClient;
-  const deleteClient = _props.deleteClient ?? contextData.deleteClient;
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [newClient, setNewClient] = useState<Partial<Client>>({});
-  const [error, setError] = useState<string | null>(null);
+  const filteredClients = clients.filter(client =>
+    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (client.email && client.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (client.phone && client.phone.includes(searchTerm))
+  );
 
-  const validateClient = (client: Partial<Client>): { isValid: boolean; emailError?: string; phoneError?: string } => {
-    const emailError = client.email ? (editingId
-      ? clients.some(c => c.id !== editingId && c.email.toLowerCase().trim() === client.email!.toLowerCase().trim())
-        ? 'Ya existe otro cliente con este email'
-        : undefined
-      : clients.some(c => c.email.toLowerCase().trim() === client.email!.toLowerCase().trim())
-        ? 'Ya existe un cliente con este email'
-        : undefined
-    ) : undefined;
-
-    const phoneError = client.phone && client.phone.trim() ? (editingId
-      ? clients.some(c => c.id !== editingId && c.phone && c.phone.trim() === client.phone!.trim())
-        ? 'Ya existe otro cliente con este teléfono'
-        : undefined
-      : clients.some(c => c.phone && c.phone.trim() === client.phone!.trim())
-        ? 'Ya existe un cliente con este teléfono'
-        : undefined
-    ) : undefined;
-
-    return {
-      isValid: !emailError && !phoneError,
-      ...(emailError && { emailError }),
-      ...(phoneError && { phoneError })
-    };
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    if (!isAdmin) return;
 
-    if (newClient.name && newClient.email) {
-      const validation = validateClient(newClient);
-      if (!validation.isValid) {
-        setError(validation.emailError || validation.phoneError || 'Error de validación');
-        return;
-      }
-
-      const clientData: Client = {
-        id: editingId || Date.now().toString(),
-        name: newClient.name.trim(),
-        email: newClient.email.trim().toLowerCase(),
-        phone: newClient.phone ? newClient.phone.trim() : '',
-        notes: newClient.notes ? newClient.notes.trim() : ''
-      };
-
-      if (editingId) {
-        if (editClient) editClient(clientData);
+    try {
+      if (editingClient) {
+        await updateClient({ ...editingClient, ...formData });
       } else {
-        if (addClient) addClient(clientData);
+        await addClient(formData);
       }
-
-      setShowForm(false);
-      setEditingId(null);
-      setNewClient({});
-      setError(null);
+      setIsModalOpen(false);
+      setEditingClient(null);
+      setFormData({ name: '', email: '', phone: '', notes: '' });
+    } catch (error) {
+      console.error('Error saving client:', error);
+      alert('Error al guardar el cliente');
     }
   };
 
   const handleEdit = (client: Client) => {
-    setNewClient(client);
-    setEditingId(client.id);
-    setShowForm(true);
-    setError(null);
+    if (!isAdmin) return;
+    setEditingClient(client);
+    setFormData({
+      name: client.name,
+      email: client.email || '',
+      phone: client.phone || '',
+      notes: client.notes || ''
+    });
+    setIsModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('¿Estás seguro de que deseas eliminar este cliente?') && deleteClient) {
-      deleteClient(id);
+  const handleDelete = async (id: string) => {
+    if (!isAdmin) return;
+    if (window.confirm('¿Estás seguro de que deseas eliminar este cliente?')) {
+      try {
+        await deleteClient(id);
+      } catch (error) {
+        console.error('Error deleting client:', error);
+        alert('No se pudo eliminar el cliente.');
+      }
     }
   };
 
   return (
-    <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-900">Directorio de Clientes</h2>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-xl shadow-lg shadow-indigo-200 transition-all"
-        >
-          <Plus className="w-5 h-5" />
-        </button>
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Directorio de Clientes</h2>
+          <p className="text-gray-500 text-sm">Gestiona la base de datos de tus huéspedes autorizados.</p>
+        </div>
+
+        {isAdmin && (
+          <button
+            onClick={() => {
+              setEditingClient(null);
+              setFormData({ name: '', email: '', phone: '', notes: '' });
+              setIsModalOpen(true);
+            }}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl shadow-lg transition-all flex items-center justify-center font-medium"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Nuevo Huésped
+          </button>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {clients.map(client => (
-          <div key={client.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative group">
-            <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                onClick={() => handleEdit(client)}
-                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-colors"
-                title="Editar cliente"
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleDelete(client.id)}
-                className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full transition-colors"
-                title="Eliminar cliente"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex items-start gap-4">
-              <div className="bg-indigo-50 p-3 rounded-full">
-                <User className="w-6 h-6 text-indigo-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-slate-900 text-lg">{client.name}</h3>
-                <div className="space-y-1 mt-2">
-                  <div className="flex items-center text-slate-500 text-sm">
-                    <Mail className="w-4 h-4 mr-2" />
-                    {client.email}
-                  </div>
-                  <div className="flex items-center text-slate-500 text-sm">
-                    <Phone className="w-4 h-4 mr-2" />
-                    {client.phone || 'Sin teléfono'}
-                  </div>
-                  {client.notes && (
-                    <div className="text-slate-400 text-xs italic mt-2">
-                      {client.notes}
-                    </div>
-                  )}
+      {/* Buscador */}
+      <div className="relative group">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+        <input
+          type="text"
+          placeholder="Buscar por nombre, email o teléfono..."
+          className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
+      {/* Grid de Clientes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {loading ? (
+          <div className="col-span-full py-20 flex flex-col items-center justify-center opacity-50">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+            <p className="mt-4 text-gray-500">Sincronizando con la nube...</p>
+          </div>
+        ) : filteredClients.length === 0 ? (
+          <div className="col-span-full py-20 text-center text-gray-500 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+            <User className="w-12 h-12 mx-auto mb-4 opacity-20" />
+            <p>No se encontraron resultados para "{searchTerm}"</p>
+          </div>
+        ) : (
+          filteredClients.map((client) => (
+            <div key={client.id} className="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition-all relative group">
+              {isAdmin && (
+                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => handleEdit(client)}
+                    className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors"
+                    title="Editar"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(client.id)}
+                    className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center">
+                  <User className="w-6 h-6 text-indigo-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-gray-900 truncate text-lg">{client.name}</h3>
+                  <p className="text-xs text-gray-400 font-mono uppercase tracking-tighter">REF: {client.id.substring(0, 8)}</p>
                 </div>
               </div>
+
+              <div className="space-y-2 text-sm text-gray-600">
+                {client.email && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-gray-400" />
+                    <span className="truncate">{client.email}</span>
+                  </div>
+                )}
+                {client.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-gray-400" />
+                    <span>{client.phone}</span>
+                  </div>
+                )}
+              </div>
+
+              {client.notes && (
+                <div className="mt-4 pt-4 border-t border-gray-50">
+                  <p className="text-xs text-gray-400 italic line-clamp-2">"{client.notes}"</p>
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-slate-900">
-                {editingId ? 'Editar Cliente' : 'Nuevo Cliente'}
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold text-gray-900">
+                {editingClient ? 'Actualizar Ficha' : 'Nueva Ficha'}
               </h3>
-              <button
-                onClick={() => {
-                  setShowForm(false);
-                  setEditingId(null);
-                  setNewClient({});
-                  setError(null);
-                }}
-                className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200"
-              >
-                <X className="w-4 h-4" />
+              <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <X className="w-6 h-6 text-gray-400" />
               </button>
             </div>
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">
-                {error}
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Nombre Completo</label>
+                <input
+                  required
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
               </div>
-            )}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                placeholder="Nombre completo"
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl"
-                value={newClient.name || ''}
-                onChange={e => setNewClient({ ...newClient, name: e.target.value })}
-                required
-              />
-              <input
-                placeholder="Email"
-                type="email"
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl"
-                value={newClient.email || ''}
-                onChange={e => setNewClient({ ...newClient, email: e.target.value })}
-                required
-              />
-              {(() => {
-                const validation = validateClient(newClient);
-                if (validation.emailError) {
-                  return <p className="text-red-500 text-xs mt-1">⚠️ {validation.emailError}</p>;
-                }
-                return null;
-              })()}
-              <input
-                placeholder="Teléfono"
-                type="tel"
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl"
-                value={newClient.phone || ''}
-                onChange={e => setNewClient({ ...newClient, phone: e.target.value })}
-              />
-              {(() => {
-                const validation = validateClient(newClient);
-                if (validation.phoneError) {
-                  return <p className="text-red-500 text-xs mt-1">⚠️ {validation.phoneError}</p>;
-                }
-                return null;
-              })()}
-              <textarea
-                placeholder="Notas"
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl h-24"
-                value={newClient.notes || ''}
-                onChange={e => setNewClient({ ...newClient, notes: e.target.value })}
-              />
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditingId(null);
-                    setNewClient({});
-                    setError(null);
-                  }}
-                  className="flex-1 py-3 text-slate-500"
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold">
-                  {editingId ? 'Actualizar' : 'Guardar'}
-                </button>
+              <div className="grid grid-cols-1 gap-5">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Correo Electrónico</label>
+                  <input
+                    type="email"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Teléfono Móvil</label>
+                  <input
+                    type="tel"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
               </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Notas / Observaciones</label>
+                <textarea
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[100px]"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 transition-all mt-4"
+              >
+                {editingClient ? 'Guardar Cambios' : 'Registrar Huésped'}
+              </button>
             </form>
           </div>
         </div>
       )}
     </div>
   );
-};
+}

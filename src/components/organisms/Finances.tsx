@@ -1,23 +1,29 @@
 import React, { useState } from 'react';
 import { Transaction, TransactionType, PaymentMethod } from '@/types';
-import { TrendingUp, TrendingDown, Plus, CreditCard, Banknote, Pencil, Trash2, X, Calendar, Tag } from 'lucide-react';
+import {
+  TrendingUp,
+  TrendingDown,
+  Plus,
+  CreditCard,
+  Banknote,
+  Pencil,
+  Trash2,
+  X,
+  Calendar,
+  Tag
+} from 'lucide-react';
 import { useData } from '@/hooks/useData';
+import { useAuth } from '@/contexts/AuthContext';
 
-interface FinancesProps {
-  transactions?: Transaction[];
-  addTransaction?: (t: Transaction) => void;
-  editTransaction?: (t: Transaction) => void;
-  deleteTransaction?: (id: string) => void;
-}
+export function Finances() {
+  const {
+    transactions,
+    addTransaction,
+    updateTransaction: editTransaction,
+    deleteTransaction
+  } = useData();
+  const { isAdmin } = useAuth();
 
-export const Finances: React.FC<FinancesProps> = (props) => {
-  // ✅ Obtener datos del contexto (o usar props si se proporcionan para retrocompatibilidad)
-  const contextData = useData();
-
-  const transactions = props.transactions ?? contextData.transactions;
-  const addTransaction = props.addTransaction ?? contextData.addTransaction;
-  const editTransaction = props.editTransaction ?? contextData.updateTransaction;
-  const deleteTransaction = props.deleteTransaction ?? contextData.deleteTransaction;
   const [activeTab, setActiveTab] = useState<TransactionType>(TransactionType.INCOME);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -28,8 +34,10 @@ export const Finances: React.FC<FinancesProps> = (props) => {
     date: new Date().toISOString().split('T')[0] || ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
+
     if (formData.amount && formData.category && formData.description) {
       const transactionData: Transaction = {
         id: editingId || Date.now().toString(),
@@ -43,9 +51,9 @@ export const Finances: React.FC<FinancesProps> = (props) => {
       };
 
       if (editingId) {
-        editTransaction(transactionData);
+        await editTransaction(transactionData);
       } else {
-        addTransaction(transactionData);
+        await addTransaction(transactionData);
       }
 
       setShowForm(false);
@@ -59,15 +67,17 @@ export const Finances: React.FC<FinancesProps> = (props) => {
   };
 
   const handleEdit = (transaction: Transaction) => {
+    if (!isAdmin) return;
     setFormData(transaction);
     setEditingId(transaction.id);
     setActiveTab(transaction.type);
     setShowForm(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('¿Estás seguro de que deseas eliminar esta transacción?')) {
-      deleteTransaction(id);
+  const handleDelete = async (id: string) => {
+    if (!isAdmin) return;
+    if (window.confirm('¿Estás seguro de que deseas eliminar esta transacción?')) {
+      await deleteTransaction(id);
     }
   };
 
@@ -77,141 +87,146 @@ export const Finances: React.FC<FinancesProps> = (props) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <h2 className="text-2xl font-bold text-slate-900">Gestión Financiera</h2>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Gestión Financiera</h2>
+          <p className="text-gray-500 text-sm">Control de ingresos y egresos operativos.</p>
+        </div>
+        {isAdmin && (
+          <button
+            onClick={() => {
+              setEditingId(null);
+              setFormData({
+                type: activeTab,
+                paymentMethod: PaymentMethod.CASH,
+                date: new Date().toISOString().split('T')[0] || ''
+              });
+              setShowForm(true);
+            }}
+            className={`w-full sm:w-auto px-6 py-3 rounded-2xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${activeTab === TransactionType.INCOME
+                ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'
+                : 'bg-red-600 hover:bg-red-700 shadow-red-100'
+              }`}
+          >
+            <Plus className="w-5 h-5" /> Registrar {activeTab === TransactionType.INCOME ? 'Ingreso' : 'Gasto'}
+          </button>
+        )}
+      </div>
 
-      <div className="bg-slate-100 p-1 rounded-xl flex">
+      <div className="bg-gray-100 p-1 rounded-2xl flex">
         <button
           onClick={() => setActiveTab(TransactionType.INCOME)}
-          className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${activeTab === TransactionType.INCOME ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+          className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === TransactionType.INCOME ? 'bg-white text-emerald-600 shadow' : 'text-gray-500'
             }`}
         >
           <TrendingUp className="w-4 h-4" /> Ingresos
         </button>
         <button
           onClick={() => setActiveTab(TransactionType.EXPENSE)}
-          className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${activeTab === TransactionType.EXPENSE ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+          className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === TransactionType.EXPENSE ? 'bg-white text-red-600 shadow' : 'text-gray-500'
             }`}
         >
           <TrendingDown className="w-4 h-4" /> Gastos
         </button>
       </div>
 
-      <div className="flex justify-end">
-        <button
-          onClick={() => setShowForm(true)}
-          className={`${activeTab === TransactionType.INCOME ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
-            } text-white px-5 py-2.5 rounded-xl flex items-center shadow-md font-medium transition-all`}
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Registrar {activeTab}
-        </button>
-      </div>
-
-      <div className="space-y-3">
+      <div className="grid gap-4">
         {filteredTransactions.map(t => (
-          <div key={t.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between relative group">
-            <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                onClick={() => handleEdit(t)}
-                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-colors"
-                title="Editar transacción"
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleDelete(t.id)}
-                className="p-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-full transition-colors"
-                title="Eliminar transacción"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+          <div key={t.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between group transition-all hover:border-gray-200">
             <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-xl ${t.type === TransactionType.INCOME ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${t.type === TransactionType.INCOME ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                }`}>
                 {t.paymentMethod === PaymentMethod.CASH ? <Banknote className="w-6 h-6" /> : <CreditCard className="w-6 h-6" />}
               </div>
               <div>
-                <h4 className="font-semibold text-slate-900">{t.description}</h4>
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <Calendar className="w-3 h-3" />
-                  <span>{new Date(t.date).toLocaleDateString()}</span>
-                  <span>•</span>
-                  <Tag className="w-3 h-3" />
-                  <span className="capitalize">{t.category}</span>
-                  {t.reservationId && (
-                    <>
-                      <span>•</span>
-                      <span className="text-xs bg-slate-100 px-2 py-0.5 rounded">Reserva {t.reservationId}</span>
-                    </>
-                  )}
+                <h4 className="font-bold text-gray-900">{t.description}</h4>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-gray-400 font-medium">
+                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(t.date).toLocaleDateString()}</span>
+                  <span className="flex items-center gap-1"><Tag className="w-3 h-3" /> {t.category}</span>
+                  {t.reservationId && <span className="bg-gray-50 px-2 py-0.5 rounded text-indigo-500 border border-gray-100">REF:{t.reservationId.substring(0, 8)}</span>}
                 </div>
               </div>
             </div>
-            <div className={`text-lg font-bold ${t.type === TransactionType.INCOME ? 'text-emerald-600' : 'text-red-600'}`}>
-              {t.type === TransactionType.INCOME ? '+' : '-'}${t.amount.toLocaleString()}
+            <div className="flex items-center gap-6">
+              <div className={`text-xl font-black font-mono ${t.type === TransactionType.INCOME ? 'text-emerald-600' : 'text-red-600'}`}>
+                {t.type === TransactionType.INCOME ? '+' : '-'}${t.amount.toLocaleString()}
+              </div>
+              {isAdmin && (
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => handleEdit(t)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-indigo-600 transition-colors"><Pencil className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(t.id)} className="p-2 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              )}
             </div>
           </div>
         ))}
+
         {filteredTransactions.length === 0 && (
-          <div className="text-center py-12 text-slate-400">
-            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="py-20 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${activeTab === TransactionType.INCOME ? 'bg-emerald-50 text-emerald-300' : 'bg-red-50 text-red-300'}`}>
               {activeTab === TransactionType.INCOME ? <TrendingUp className="w-8 h-8" /> : <TrendingDown className="w-8 h-8" />}
             </div>
-            <p className="font-medium">No hay registros de {activeTab.toLowerCase()} aún.</p>
+            <p className="text-gray-400 font-bold">No se registran {activeTab.toLowerCase()} este periodo.</p>
           </div>
         )}
       </div>
 
       {/* Modal Form */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-slate-900">
-                {editingId ? `Editar ${activeTab}` : `Registrar ${activeTab}`}
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-2xl font-bold text-gray-900">
+                {editingId ? 'Editar Registro' : `Nuevo ${activeTab === TransactionType.INCOME ? 'Ingreso' : 'Egreso'}`}
               </h3>
-              <button
-                onClick={() => {
-                  setShowForm(false);
-                  setEditingId(null);
-                  setFormData({
-                    type: activeTab,
-                    paymentMethod: PaymentMethod.CASH,
-                    date: new Date().toISOString().split('T')[0] || ''
-                  });
-                }}
-                className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200"
-              >
-                <X className="w-4 h-4" />
+              <button onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <X className="w-6 h-6 text-gray-400" />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Monto</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500"
-                  value={formData.amount || ''}
-                  onChange={e => setFormData({ ...formData, amount: Number(e.target.value) })}
-                  required
-                />
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Monto ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-black text-xl text-indigo-600 font-mono outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                    value={formData.amount || ''}
+                    onChange={e => setFormData({ ...formData, amount: Number(e.target.value) })}
+                    required
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Fecha</label>
+                  <input
+                    type="date"
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                    value={formData.date || ''}
+                    onChange={e => setFormData({ ...formData, date: e.target.value })}
+                    required
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Descripción</label>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Descripción</label>
                 <input
                   type="text"
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500"
+                  placeholder="Ej: Pago de electricidad de Enero"
+                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-medium outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500"
                   value={formData.description || ''}
                   onChange={e => setFormData({ ...formData, description: e.target.value })}
                   required
                 />
               </div>
+
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Categoría</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Categoría</label>
                   <select
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500"
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500"
                     value={formData.category || ''}
                     onChange={e => setFormData({ ...formData, category: e.target.value })}
                     required
@@ -232,10 +247,10 @@ export const Finances: React.FC<FinancesProps> = (props) => {
                     )}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Método</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Método</label>
                   <select
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500"
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500"
                     value={formData.paymentMethod}
                     onChange={e => setFormData({ ...formData, paymentMethod: e.target.value as PaymentMethod })}
                   >
@@ -244,44 +259,20 @@ export const Finances: React.FC<FinancesProps> = (props) => {
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Fecha</label>
-                <input
-                  type="date"
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500"
-                  value={formData.date || ''}
-                  onChange={e => setFormData({ ...formData, date: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditingId(null);
-                    setFormData({
-                      type: activeTab,
-                      paymentMethod: PaymentMethod.CASH,
-                      date: new Date().toISOString().split('T')[0] || ''
-                    });
-                  }}
-                  className="flex-1 py-3 text-slate-600 font-medium hover:bg-slate-50 rounded-xl"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className={`flex-1 py-3 text-white font-semibold rounded-xl shadow-lg ${activeTab === TransactionType.INCOME ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' : 'bg-red-600 hover:bg-red-700 shadow-red-200'
-                    }`}
-                >
-                  {editingId ? 'Actualizar' : 'Guardar'}
-                </button>
-              </div>
+
+              <button
+                type="submit"
+                className={`w-full py-5 text-white font-black text-lg rounded-2xl shadow-xl transition-all ${activeTab === TransactionType.INCOME
+                    ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-50'
+                    : 'bg-red-600 hover:bg-red-700 shadow-red-50'
+                  }`}
+              >
+                {editingId ? 'Guardar Cambios' : 'Registrar Transacción'}
+              </button>
             </form>
           </div>
         </div>
       )}
     </div>
   );
-};
+}
