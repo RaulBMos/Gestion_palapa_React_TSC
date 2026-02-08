@@ -1,7 +1,7 @@
 import React from 'react';
 import { Home, Calendar, DollarSign, Users, Menu, LogOut } from 'lucide-react';
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuth';
 
 export const Layout: React.FC = () => {
   const location = useLocation();

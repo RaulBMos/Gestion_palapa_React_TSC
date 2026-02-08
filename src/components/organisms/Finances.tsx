@@ -13,7 +13,7 @@ import {
   Tag
 } from 'lucide-react';
 import { useData } from '@/hooks/useData';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuth';
 
 export function Finances() {
   const {

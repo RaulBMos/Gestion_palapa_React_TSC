@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
-import { AuthProvider, useAuth } from '../AuthContext';
+import { AuthProvider } from '../AuthContext';
+import { useAuth } from '@/contexts/useAuth';
 import { createSupabaseMock } from '../../test/mocks/supabase.mock';
 
 // 1. Setup Mock Hoisted - Correcto para evitar problemas de orden en Vitest
@@ -45,7 +46,7 @@ describe('AuthContext Integration Tests', () => {
         mockSupabase.auth.getSession.mockResolvedValue({
             data: { session: { user: { id: 'test-user-init' } } },
             error: null,
-        } as any);
+        });
 
         render(
             <AuthProvider>
@@ -65,7 +66,7 @@ describe('AuthContext Integration Tests', () => {
         mockSupabase.auth.getSession.mockResolvedValue({
             data: { session: null },
             error: { message: errorMsg },
-        } as any);
+        });
 
         render(
             <AuthProvider>
@@ -80,8 +81,8 @@ describe('AuthContext Integration Tests', () => {
     });
 
     it('should handle signIn with Magic Link', async () => {
-        mockSupabase.auth.getSession.mockResolvedValue({ data: { session: null }, error: null } as any);
-        mockSupabase.auth.signInWithOtp.mockResolvedValue({ error: null } as any);
+        mockSupabase.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+        mockSupabase.auth.signInWithOtp.mockResolvedValue({ error: null });
 
         render(
             <AuthProvider>
@@ -102,8 +103,8 @@ describe('AuthContext Integration Tests', () => {
     });
 
     it('should handle signIn with Password', async () => {
-        mockSupabase.auth.getSession.mockResolvedValue({ data: { session: null }, error: null } as any);
-        mockSupabase.auth.signInWithPassword.mockResolvedValue({ error: null } as any);
+        mockSupabase.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+        mockSupabase.auth.signInWithPassword.mockResolvedValue({ error: null });
 
         render(
             <AuthProvider>
@@ -128,8 +129,8 @@ describe('AuthContext Integration Tests', () => {
         mockSupabase.auth.getSession.mockResolvedValue({
             data: { session: { user: { id: 'user-to-logout' } } },
             error: null,
-        } as any);
-        mockSupabase.auth.signOut.mockResolvedValue({ error: null } as any);
+        });
+        mockSupabase.auth.signOut.mockResolvedValue({ error: null });
 
         render(
             <AuthProvider>

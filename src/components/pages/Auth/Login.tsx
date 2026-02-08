@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuth';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 export function Login() {
@@ -28,8 +28,9 @@ export function Login() {
             }
 
             navigate(from, { replace: true });
-        } catch (err: any) {
-            setError(err.message || 'Error al iniciar sesión');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Error al iniciar sesión';
+            setError(message);
         } finally {
             setIsLoading(false);
         }

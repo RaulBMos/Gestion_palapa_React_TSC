@@ -3,9 +3,16 @@
  * Ejecutar este script en la consola del navegador para eliminar todos los datos de prueba
  */
 
-// Limpiar todos los datos de la aplicación
-localStorage.removeItem('cg_clients');
-localStorage.removeItem('cg_reservations');
-localStorage.removeItem('cg_transactions');
+(() => {
+  const storage = typeof globalThis.localStorage !== 'undefined' ? globalThis.localStorage : undefined;
 
-console.log('✅ LocalStorage limpiado. Recarga la página para empezar con datos vacíos.');
+  if (!storage) {
+    globalThis.console?.warn?.('ℹ️ localStorage no está disponible en este entorno');
+    return;
+  }
+  storage.removeItem('cg_clients');
+  storage.removeItem('cg_reservations');
+  storage.removeItem('cg_transactions');
+
+  globalThis.console?.log?.('✅ LocalStorage limpiado. Recarga la página para empezar con datos vacíos.');
+})();

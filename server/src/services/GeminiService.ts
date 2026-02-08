@@ -1,6 +1,52 @@
 import { GoogleGenAI } from '@google/genai';
+import { z } from 'zod';
 import type { Transaction, Reservation } from '../types.js';
 import { TransactionType, ReservationStatus } from '../types.js';
+
+const AnalysisResponseSchema = z.object({
+  id: z.string().optional(),
+  timestamp: z.string().optional(),
+  type: z.enum(['financial', 'reservation', 'combined']),
+  summary: z.string(),
+  insights: z.array(z.string()).min(1),
+  confidence: z.number().min(0).max(1).optional(),
+});
+
+const MetricsSchema = z.object({
+  total: z.number(),
+  average: z.number().optional(),
+  trend: z.enum(['up', 'down', 'stable']).optional(),
+  change: z.number().optional(),
+});
+
+const RecommendationSchema = z.object({
+  priority: z.enum(['high', 'medium', 'low']),
+  action: z.string(),
+  expectedOutcome: z.string(),
+  timeline: z.string().optional(),
+});
+
+const ComplexAnalysisSchema = z.object({
+  executiveSummary: z.string(),
+  analysis: AnalysisResponseSchema,
+  metrics: MetricsSchema.optional(),
+  recommendations: z.array(RecommendationSchema).optional(),
+});
+
+type ComplexAnalysis = z.infer<typeof ComplexAnalysisSchema>;
+
+const extractJsonPayload = (text: string): string => {
+  const jsonFenceMatch = text.match(/```json\s*([\s\S]*?)\s*```/i);
+  if (jsonFenceMatch) {
+    return jsonFenceMatch[1].trim();
+  }
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return text.slice(firstBrace, lastBrace + 1).trim();
+  }
+  return text.trim();
+};
 
 /**
  * Servicio de análisis de negocio usando Google Gemini AI
@@ -17,12 +63,12 @@ class GeminiAnalysisService {
    * Analiza datos de negocio usando Gemini AI
    * @param transactions - Array de transacciones
    * @param reservations - Array de reservaciones
-   * @returns Análisis en formato Markdown
+   * @returns Análisis estructurado según ComplexAnalysisSchema
    */
   async analyzeBusinessData(
     transactions: Transaction[],
     reservations: Reservation[]
-  ): Promise<string> {
+  ): Promise<ComplexAnalysis> {
     // 1. Calcular métricas
     const income = transactions
       .filter(t => t.type === TransactionType.INCOME)
@@ -46,31 +92,64 @@ class GeminiAnalysisService {
       0
     );
 
+    const netProfit = income - expenses;
+    const margin = income > 0 ? (netProfit / income) * 100 : 0;
+    const analysisType = transactions.length > 0 && reservations.length > 0
+      ? 'combined'
+      : transactions.length > 0
+        ? 'financial'
+        : 'reservation';
+
     // 2. Construir prompt
     const prompt = `
-Actúa como un analista financiero experto en bienes raíces y alquiler vacacional.
+Eres un analista financiero especializado en hospitalidad.
+Analiza el negocio usando exclusivamente la información numérica proporcionada.
 
-DATOS DEL NEGOCIO:
-- Ingresos Totales: $${income}
-- Gastos Totales: $${expenses}
-- Beneficio Neto: $${income - expenses}
-- Margen Neto: ${income > 0 ? ((income - expenses) / income * 100).toFixed(1) : 0}%
-- Reservas Confirmadas Activas: ${confirmedReservations.length}
-- Cabañas Ocupadas en Reservas Activas: ${totalCabinsOccupied}
-- Huéspedes Próximos (Adultos/Mayores de 5): ${totalAdults}
-- Huéspedes Próximos (Niños < 5 años): ${totalChildren}
-- Total de Transacciones: ${transactions.length}
+Datos cuantitativos:
+{
+  "income": ${income.toFixed(2)},
+  "expenses": ${expenses.toFixed(2)},
+  "netProfit": ${netProfit.toFixed(2)},
+  "profitMargin": ${margin.toFixed(2)},
+  "confirmedReservations": ${confirmedReservations.length},
+  "totalCabinsOccupied": ${totalCabinsOccupied},
+  "upcomingAdults": ${totalAdults},
+  "upcomingChildren": ${totalChildren},
+  "transactionCount": ${transactions.length}
+}
 
-SOLICITUD:
-Proporciona un análisis profesional en 3 párrafos máximo sobre:
-1. Salud general del negocio
-2. Ocupación y utilización de cabañas
-3. Tendencias financieras
+Responde ÚNICAMENTE con JSON válido (sin texto adicional, comentarios ni bloques de código) que cumpla exactamente con la siguiente forma:
+{
+  "executiveSummary": string,
+  "analysis": {
+    "id": string opcional,
+    "timestamp": string ISO opcional,
+    "type": "financial" | "reservation" | "combined",
+    "summary": string,
+    "insights": string[],
+    "confidence": number entre 0 y 1 opcional
+  },
+  "metrics": {
+    "total": number,
+    "average": number opcional,
+    "trend": "up" | "down" | "stable" opcional,
+    "change": number opcional
+  } opcional,
+  "recommendations": [
+    {
+      "priority": "high" | "medium" | "low",
+      "action": string,
+      "expectedOutcome": string,
+      "timeline": string opcional
+    }
+  ] opcional
+}
 
-Incluye:
-- 2 KPIs clave a vigilar
-- 1-2 recomendaciones concretas para mejorar rentabilidad
-- Formato: Markdown limpio, sin listas numeradas
+Requisitos adicionales:
+- Usa "type" = "${analysisType}".
+- Proporciona al menos dos elementos en "insights".
+- Si no hay recomendaciones, devuelve un arreglo vacío en "recommendations".
+- Asegúrate de que todos los números estén en formato numérico (no cadenas).
     `;
 
     // 3. Llamar Gemini con timeout
@@ -88,13 +167,26 @@ Incluye:
         ),
       ]);
 
-      const result = response as { text: string };
+      const result = response as { text?: string };
 
       if (!result?.text) {
         throw new Error('Respuesta vacía de Gemini');
       }
 
-      return result.text;
+      const rawJson = extractJsonPayload(result.text);
+      let parsed: unknown;
+
+      try {
+        parsed = JSON.parse(rawJson);
+      } catch (parseError) {
+        throw new Error(`No se pudo parsear la respuesta de Gemini a JSON válido: ${(parseError as Error).message}`);
+      }
+
+      const validated = ComplexAnalysisSchema.parse(parsed);
+
+      const ensured: ComplexAnalysis = complexAnalysisPostProcess(validated, analysisType);
+
+      return ComplexAnalysisSchema.parse(ensured);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       console.error('Gemini API Error:', {
@@ -107,3 +199,16 @@ Incluye:
 }
 
 export default GeminiAnalysisService;
+
+const complexAnalysisPostProcess = (analysis: ComplexAnalysis, analysisType: 'financial' | 'reservation' | 'combined'): ComplexAnalysis => {
+  const timestamp = analysis.analysis.timestamp ?? new Date().toISOString();
+  return {
+    ...analysis,
+    analysis: {
+      ...analysis.analysis,
+      timestamp,
+      type: analysisType,
+    },
+    recommendations: analysis.recommendations ?? [],
+  };
+};

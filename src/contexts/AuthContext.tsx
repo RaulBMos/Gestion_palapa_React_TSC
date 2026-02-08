@@ -1,38 +1,14 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { getSupabaseClient } from '../config/supabase';
 import { logError } from '@/utils/logger';
-
-// ============================================================================
-// TIPOS
-// ============================================================================
-
-export type UserRole = 'admin' | 'viewer';
-
-interface AuthContextType {
-    user: User | null;
-    session: Session | null;
-    role: UserRole | null;
-    loading: boolean;
-    error: AuthError | null;
-    signIn: (email: string) => Promise<{ error: AuthError | null }>;
-    signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-    signInWithPassword: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-    signOut: () => Promise<{ error: AuthError | null }>;
-    isAdmin: boolean;
-}
-
-// ============================================================================
-// CONTEXTO
-// ============================================================================
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext, type UserRole } from './AuthContextBase';
 
 // ============================================================================
 // PROVEEDOR
 // ============================================================================
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [role, setRole] = useState<UserRole | null>(null);
@@ -50,7 +26,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .single();
 
             if (error) throw error;
-            if (data) setRole(data.role as UserRole);
+            const roleValue = (data as { role?: string } | null)?.role;
+            if (roleValue === 'admin' || roleValue === 'viewer') {
+                setRole(roleValue);
+            }
         } catch (err) {
             console.error('Error fetching user profile:', err);
             setRole('viewer'); // Por seguridad, rol por defecto es el más restringido
@@ -201,14 +180,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-// ============================================================================
-// HOOK
-// ============================================================================
-
-export function useAuth() {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
-}
+export type { UserRole, AuthContextType } from './AuthContextBase';

@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { config, validateEnv } from './config.js';
 import { createRateLimiter, validateApiKey, requestLogger, errorHandler } from './middleware/index.js';
+import { authenticateSupabaseJwt } from './middleware/auth.js';
 import apiRoutes from './routes/index.js';
 
 /**
@@ -36,7 +37,7 @@ export const createApp = () => {
       },
       credentials: true,
       methods: ['GET', 'POST', 'OPTIONS'],
-      allowedHeaders: ['Content-Type'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
       maxAge: 86400, // 24 horas
     })
   );
@@ -48,7 +49,8 @@ export const createApp = () => {
   );
   app.use('/api/', rateLimiter);
 
-  // Validar API Key
+  // Validar autenticación y API Key
+  app.use('/api/', authenticateSupabaseJwt);
   app.use('/api/', validateApiKey);
 
   // Rutas API

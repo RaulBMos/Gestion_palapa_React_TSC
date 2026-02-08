@@ -12,7 +12,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { useData } from '@/hooks/useData';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuth';
 
 export function Reservations() {
   const {
@@ -55,9 +55,18 @@ export function Reservations() {
 
   const formatDateForDisplay = (dateStr: string | undefined) => {
     if (!dateStr) return '-';
-    const parts = dateStr.split('-').map(Number);
-    if (parts.length !== 3 || parts.some(isNaN)) return dateStr;
-    const date = new Date(parts[0], parts[1] - 1, parts[2]);
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) {
+      return dateStr;
+    }
+    const [yearStr, monthStr, dayStr] = parts;
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    const day = Number(dayStr);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+      return dateStr;
+    }
+    const date = new Date(year, month - 1, day);
     return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
   };
 

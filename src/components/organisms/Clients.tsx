@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useData } from '@/hooks/useData';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/useAuth';
 import { Client } from '@/types';
 import {
   Plus,
