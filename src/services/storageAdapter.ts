@@ -10,9 +10,12 @@ import type {
     Transaction,
     ReservationStatus,
 } from '../types';
-import { isSupabaseEnabled } from '../config/supabase';
+import { isSupabaseEnabled, getSupabaseClient } from '../config/supabase';
 import * as SupabaseService from './supabaseService';
-import { logInfo, logWarning } from '../utils/logger';
+import { logError, logInfo, logWarning } from '../utils/logger';
+import { VITE_ENCRYPTION_KEY } from '../config/env';
+import AES from 'crypto-js/aes';
+import Utf8 from 'crypto-js/enc-utf8';
 
 /**
  * LocalStorage keys (exported for testing)
@@ -22,6 +25,75 @@ export const STORAGE_KEYS = {
     RESERVATIONS: 'cg_reservations',
     TRANSACTIONS: 'cg_transactions',
 } as const;
+
+const encryptionKey = VITE_ENCRYPTION_KEY;
+const isEncryptionEnabled = typeof encryptionKey === 'string' && encryptionKey.length > 0;
+let decryptionEscalated = false;
+
+const encryptPayload = (payload: string): string => {
+    if (!isEncryptionEnabled) {
+        return payload;
+    }
+
+    return AES.encrypt(payload, encryptionKey).toString();
+};
+
+const decryptPayload = (cipherText: string): string => {
+    if (!isEncryptionEnabled) {
+        return cipherText;
+    }
+
+    const bytes = AES.decrypt(cipherText, encryptionKey);
+    const decrypted = bytes.toString(Utf8);
+    if (!decrypted) {
+        throw new Error('Stored data could not be decrypted');
+    }
+
+    return decrypted;
+};
+
+const clearSensitiveStorage = (): void => {
+    if (typeof window === 'undefined' || !window.localStorage) {
+        return;
+    }
+
+    window.localStorage.clear();
+};
+
+const reloadApp = (): void => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.location.reload();
+};
+
+const forceLogout = async (): Promise<void> => {
+    try {
+        if (isSupabaseEnabled()) {
+            const supabase = getSupabaseClient();
+            await supabase.auth.signOut();
+        }
+    } catch (error) {
+        logWarning('Failed to sign out during encryption failure cleanup', { error });
+    } finally {
+        reloadApp();
+    }
+};
+
+const handleDecryptionFailure = (error: unknown): void => {
+    if (decryptionEscalated) {
+        return;
+    }
+
+    decryptionEscalated = true;
+    logError(error instanceof Error ? error : new Error('Failed to decrypt persisted data'), {
+        component: 'storageAdapter',
+        action: 'handleDecryptionFailure',
+    });
+    clearSensitiveStorage();
+    void forceLogout();
+};
 
 // =============================================================================
 // LOCALSTORAGE IMPLEMENTATION
@@ -33,16 +105,24 @@ export const STORAGE_KEYS = {
 function getFromLocalStorage<T>(key: string): T[] {
     try {
         const data = localStorage.getItem(key);
-        return data ? JSON.parse(data) : [];
+        if (!data) {
+            return [];
+        }
+
+        const decryptedText = decryptPayload(data);
+        return JSON.parse(decryptedText);
     } catch (error) {
         logWarning(`Failed to read from localStorage: ${key}`, { error });
+        handleDecryptionFailure(error);
         return [];
     }
 }
 
 function saveToLocalStorage<T>(key: string, data: T[]): void {
     try {
-        localStorage.setItem(key, JSON.stringify(data));
+        const payload = JSON.stringify(data);
+        const encrypted = encryptPayload(payload);
+        localStorage.setItem(key, encrypted);
     } catch (error) {
         logWarning(`Failed to save to localStorage: ${key}`, { error });
     }
@@ -370,4 +450,8 @@ export function restoreFromBackup(backup: {
     saveToLocalStorage(STORAGE_KEYS.RESERVATIONS, backup.reservations);
     saveToLocalStorage(STORAGE_KEYS.TRANSACTIONS, backup.transactions);
     logInfo('Data restored from backup');
+}
+
+export function resetEncryptionStateForTests(): void {
+    decryptionEscalated = false;
 }

@@ -5,15 +5,16 @@ import { ZodSchema, ZodError } from 'zod';
 import {
   GeminiResponse,
   GeminiConfig,
-  ComplexAnalysis, // Type
-  AnalysisResponse, // Type
-  ComplexAnalysisSchema, // Zod Schema
-  AnalysisResponseSchema, // Zod Schema
-  createGeminiResponseSchema // Helper
+  Transaction,
+  Reservation,
 } from '@/types';
-import { Transaction, Reservation } from '@/types';
-import DOMPurify from 'dompurify';
 import { VITE_SERVER_URL } from '@/config/env';
+import { GeminiClient } from '@/services/geminiClient';
+import {
+  ResponseValidator,
+  AIValidationError,
+} from '@/services/responseValidator';
+import { FallbackStrategy } from '@/services/fallbackStrategy';
 
 /**
  * Environment Variables for Gemini Service Configuration:
@@ -40,209 +41,6 @@ interface ApiResponse {
   };
 }
 
-/**
- * Error personalizado para validación de respuestas de IA
- * Extiende Error para que pueda ser capturado por ErrorBoundary
- */
-export class AIValidationError extends Error {
-  public readonly cause: ZodError | Error;
-  public readonly response: unknown;
-
-  constructor(message: string, cause: ZodError | Error, response: unknown) {
-    super(message);
-    this.name = 'AIValidationError';
-    this.cause = cause;
-    this.response = response;
-
-    // Mantener stack trace
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, AIValidationError);
-    }
-  }
-
-  /**
-   * Formatea el error para logging/debugging
-   */
-  public toDetailedString(): string {
-    const validationErrors = this.cause instanceof ZodError
-      ? this.cause.issues.map(issue =>
-        `- ${issue.path.join('.')}: ${issue.message}`
-      ).join('\n')
-      : this.cause.message;
-
-    return `${this.message}\nValidation Errors: ${validationErrors}\nOriginal Response: ${JSON.stringify(this.response, null, 2)}`;
-  }
-}
-
-/**
- * Esquemas Zod para validación de respuestas de la IA
- */
-
-// Esquema base para respuestas de análisis
-// const BaseAnalysisSchema = {
-//   success: true,
-//   timestamp: true,
-//   analysisId: true,
-// };
-
-// Esquema para análisis financiero completo
-// const FinancialAnalysisSchema = {
-//   ...BaseAnalysisSchema,
-//   success: true,
-//   data: {
-//     summary: true,
-//     insights: true,
-//     metrics: {
-//       totalRevenue: true,
-//       totalExpenses: true,
-//       netIncome: true,
-//       profitMargin: true,
-//       revenueGrowth: true,
-//     },
-//     trends: true,
-//     recommendations: true,
-//     confidence: true,
-//   },
-// };
-
-// Esquema para análisis de reservaciones
-// const ReservationAnalysisSchema = {
-//   ...BaseAnalysisSchema,
-//   success: true,
-//   data: {
-//     summary: true,
-//     occupancy: {
-//       currentRate: true,
-//       averageRate: true,
-//       trend: true,
-//     },
-//     bookings: {
-//       total: true,
-//       confirmed: true,
-//       pending: true,
-//       cancelled: true,
-//     },
-//     peakSeasons: true,
-//     recommendations: true,
-//   },
-// };
-
-// Esquema para análisis combinado (ambos tipos de datos)
-// const CombinedAnalysisSchema = {
-//   ...BaseAnalysisSchema,
-//   success: true,
-//   data: {
-//     executiveSummary: true,
-//     financial: FinancialAnalysisSchema.data,
-//     reservations: ReservationAnalysisSchema.data,
-//     crossInsights: true,
-//     strategicRecommendations: true,
-//     overallHealth: true,
-//   },
-// };
-
-// Esquema para respuestas de error
-// const ErrorAnalysisSchema = {
-//   ...BaseAnalysisSchema,
-//   success: false,
-//   error: true,
-//   errorCode: true,
-//   details: true,
-// };
-
-// Tipo inferido del esquema
-// Tipos fuertemente tipados
-export type CombinedAnalysisData = GeminiResponse<ComplexAnalysis>;
-export type FinancialAnalysisData = GeminiResponse<AnalysisResponse>;
-export type ReservationAnalysisData = GeminiResponse<AnalysisResponse>;
-
-export type ValidatedAIResponse = CombinedAnalysisData | FinancialAnalysisData | ReservationAnalysisData;
-
-/**
- * Función de validación principal
- * Transforma el string de la IA en un objeto tipado y validado
- */
-export const validateAIResponse = (
-  response: unknown,
-  expectedType: 'financial' | 'reservation' | 'combined' = 'combined'
-): ValidatedAIResponse => {
-  try {
-    // Si la respuesta es un string, intentar parsear como JSON primero
-    let parsedResponse = response;
-    if (typeof response === 'string') {
-      try {
-        parsedResponse = JSON.parse(response);
-      } catch {
-        const jsonError = new Error('La respuesta de la IA no es un JSON válido');
-        const emptyZodError = Object.create(ZodError.prototype);
-        emptyZodError.issues = [];
-        emptyZodError.name = 'ZodError';
-        throw new AIValidationError(
-          jsonError.message,
-          emptyZodError,
-          response
-        );
-      }
-    }
-
-    // Seleccionar esquema basado en el tipo esperado
-    let schema;
-    if (expectedType === 'combined') {
-      schema = createGeminiResponseSchema(ComplexAnalysisSchema);
-    } else {
-      schema = createGeminiResponseSchema(AnalysisResponseSchema);
-    }
-
-    // Validar con Zod
-    const validatedData = schema.parse(parsedResponse);
-    return validatedData as ValidatedAIResponse;
-
-  } catch (validationError) {
-    if (validationError instanceof ZodError) {
-      throw new AIValidationError(
-        `Validación fallida para respuesta de tipo ${expectedType}`,
-        validationError,
-        response
-      );
-    }
-
-    if (validationError instanceof AIValidationError) {
-      throw validationError;
-    }
-
-    const unexpectedError = new Error(`Error inesperado al validar respuesta: ${validationError instanceof Error ? validationError.message : 'Error desconocido'}`);
-    const emptyZodError = Object.create(ZodError.prototype);
-    emptyZodError.issues = [];
-    emptyZodError.name = 'ZodError';
-    throw new AIValidationError(
-      unexpectedError.message,
-      emptyZodError,
-      response
-    );
-  }
-};
-
-/**
- * Función de validación segura con fallback
- * Retorna null si la validación falla en lugar de lanzar error
- */
-export const safeValidateAIResponse = (
-  response: unknown,
-  expectedType: 'financial' | 'reservation' | 'combined' = 'combined'
-): ValidatedAIResponse | null => {
-  try {
-    return validateAIResponse(response, expectedType);
-  } catch (error) {
-    logError(error instanceof Error ? error : new Error('Validation error'), {
-      component: 'geminiService',
-      action: 'safeValidateAIResponse',
-      expectedType,
-      response: typeof response === 'string' ? response.substring(0, 200) + '...' : response,
-    });
-    return null;
-  }
-};
-
 interface AnalysisResult {
   success: boolean;
   data?: string;
@@ -265,6 +63,10 @@ const DEFAULT_OPTIONS: Required<AnalysisOptions> = {
   onRetry: () => { },
 };
 
+const geminiClient = new GeminiClient({ serverUrl: VITE_SERVER_URL });
+const responseValidator = new ResponseValidator();
+const fallbackStrategy = new FallbackStrategy();
+
 /**
  * Calcula el delay exponencial con jitter
  * Fórmula: delay = (baseDelay * (2 ^ attempt)) + jitter
@@ -284,31 +86,6 @@ const getExponentialBackoffDelay = (attempt: number, baseDelay: number = 500): n
  * @param ms - Milisegundos a esperar
  */
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
-
-/**
- * Sanitiza HTML/Markdown recibido usando DOMPurify
- * Protege contra XSS mientras preserva el contenido Markdown
- * 
- * @param content - Contenido a sanitizar
- * @returns Contenido sanitizado
- */
-const sanitizeContent = (content: string): string => {
-  // Configuración permisiva para Markdown (preserva formato básico)
-  const config = {
-    ALLOWED_TAGS: [
-      'b', 'i', 'em', 'strong', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-      'p', 'br', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'a', 'img',
-      'span', 'div', 'table', 'tr', 'td', 'th', 'thead', 'tbody'
-    ],
-    ALLOWED_ATTR: [
-      'href', 'title', 'alt', 'src', 'class', 'id', 'style',
-      'target', 'rel', 'data-*'
-    ],
-    KEEP_CONTENT: true,
-  };
-
-  return DOMPurify.sanitize(content, config);
-};
 
 class GeminiService {
   private genAI: GoogleGenerativeAI | null = null;
@@ -598,7 +375,11 @@ class GeminiService {
     const errorMessage = error.message;
 
     if (errorMessage.includes('QUOTA_EXCEEDED') || errorMessage.includes('quota')) {
-      logger.quotaExceeded('gemini', { model, error: errorMessage });
+      logError(error, {
+        component: 'gemini',
+        model,
+        errorType: 'QUOTA_EXCEEDED',
+      });
       return {
         success: false,
         error: 'API quota exceeded. Please try again later.',
@@ -607,7 +388,11 @@ class GeminiService {
     }
 
     if (errorMessage.includes('NETWORK_ERROR') || errorMessage.includes('fetch')) {
-      logger.networkError('gemini-api', error, { model });
+      logError(error, {
+        component: 'gemini',
+        model,
+        errorType: 'NETWORK_ERROR',
+      });
       return {
         success: false,
         error: 'Network error. Please check your connection and try again.',
@@ -712,7 +497,6 @@ export const analyzeBusinessData = async (
   options?: AnalysisOptions
 ): Promise<AnalysisResult> => {
   const config: Required<AnalysisOptions> = { ...DEFAULT_OPTIONS, ...options };
-  const serverUrl = VITE_SERVER_URL;
 
   logInfo('Iniciando análisis de datos de negocio', {
     component: 'geminiService',
@@ -763,13 +547,9 @@ export const analyzeBusinessData = async (
   let lastError: Error | null = null;
   let lastAborted = false;
 
-  // Reintentos con backoff exponencial
   for (let attempt = 0; attempt < config.maxRetries; attempt++) {
     try {
-      const controller = new AbortController();
-
-      // Configurar timeout
-      const timeoutId = setTimeout(() => {
+      const onTimeout = () => {
         logWarning('Timeout de solicitud de análisis', {
           component: 'geminiService',
           action: 'analyzeBusinessData',
@@ -777,172 +557,110 @@ export const analyzeBusinessData = async (
           attempt: attempt + 1,
           timeoutMs: config.timeoutMs,
         });
-        controller.abort();
-      }, config.timeoutMs);
+      };
 
+      logDebug(`Realizando intento de análisis ${attempt + 1}/${config.maxRetries}`, {
+        component: 'geminiService',
+        action: 'analyzeBusinessData',
+        phase: 'network_request',
+        attempt: attempt + 1,
+        serverUrl: `${VITE_SERVER_URL}/api/analyze`,
+      });
+
+      const response = await geminiClient.requestAnalysis(
+        { transactions, reservations },
+        config.timeoutMs,
+        onTimeout
+      );
+
+      logDebug('Respuesta recibida del servidor', {
+        component: 'geminiService',
+        action: 'analyzeBusinessData',
+        phase: 'network_request',
+        attempt: attempt + 1,
+        status: response.status,
+        ok: response.ok,
+      });
+
+      const responseClone = response.clone();
+      let rawResult;
       try {
-        logDebug(`Realizando intento de análisis ${attempt + 1}/${config.maxRetries}`, {
+        rawResult = await responseClone.json();
+      } catch {
+        const error = new Error('Error al parsear respuesta JSON del servidor');
+        logError(error, {
           component: 'geminiService',
           action: 'analyzeBusinessData',
-          phase: 'network_request',
+          phase: 'response_parsing',
           attempt: attempt + 1,
-          serverUrl: `${serverUrl}/api/analyze`,
+          responseStatus: response.status,
+          responseText: await response.text(),
         });
+        throw error;
+      }
 
-        const response = await fetch(`${serverUrl}/api/analyze`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            transactions,
-            reservations,
-          }),
-          signal: controller.signal,
-        });
-
-        // Limpiar timeout
-        clearTimeout(timeoutId);
-
-        logDebug('Respuesta recibida del servidor', {
+      if (!response.ok) {
+        const error = new Error(rawResult.error || `Error del servidor (${response.status})`);
+        logError(error, {
           component: 'geminiService',
           action: 'analyzeBusinessData',
-          phase: 'network_request',
+          phase: 'response_validation',
           attempt: attempt + 1,
           status: response.status,
-          ok: response.ok,
+          statusText: response.statusText,
+          serverError: rawResult.error,
         });
-
-        // Parsear respuesta bruta
-        let rawResult;
-        try {
-          rawResult = await response.json();
-        } catch {
-          const error = new Error('Error al parsear respuesta JSON del servidor');
-          logError(error, {
-            component: 'geminiService',
-            action: 'analyzeBusinessData',
-            phase: 'response_parsing',
-            attempt: attempt + 1,
-            responseStatus: response.status,
-            responseText: await response.text(),
-          });
-          throw error;
-        }
-
-        if (!response.ok) {
-          const error = new Error(rawResult.error || `Error del servidor (${response.status})`);
-          logError(error, {
-            component: 'geminiService',
-            action: 'analyzeBusinessData',
-            phase: 'response_validation',
-            attempt: attempt + 1,
-            status: response.status,
-            statusText: response.statusText,
-            serverError: rawResult.error,
-          });
-          throw error;
-        }
-
-        // ✅ VALIDAR respuesta de la IA con Zod
-        let validatedResponse: ValidatedAIResponse;
-        try {
-          validatedResponse = validateAIResponse(rawResult, expectedType);
-          logDebug('Respuesta validada exitosamente', {
-            component: 'geminiService',
-            action: 'analyzeBusinessData',
-            phase: 'response_validation',
-            attempt: attempt + 1,
-            expectedType,
-            success: validatedResponse.success,
-          });
-        } catch (validationError) {
-          if (validationError instanceof AIValidationError) {
-            logError(validationError, {
-              component: 'geminiService',
-              action: 'analyzeBusinessData',
-              phase: 'response_validation',
-              attempt: attempt + 1,
-              expectedType,
-              validationDetails: validationError.toDetailedString(),
-            });
-            throw validationError;
-          }
-          logError(validationError instanceof Error ? validationError : new Error('Unknown validation error'), {
-            component: 'geminiService',
-            action: 'analyzeBusinessData',
-            phase: 'response_validation',
-            attempt: attempt + 1,
-            expectedType,
-          });
-          throw validationError;
-        }
-
-        // Si la respuesta es exitosa, procesar y sanitizar
-        if (validatedResponse.success) {
-          if (!validatedResponse.data) {
-            throw new Error('La respuesta fue exitosa pero no contiene datos');
-          }
-
-          // Extraer contenido para sanitización
-          let contentToSanitize: string;
-
-          if (expectedType === 'combined') {
-            const combinedData = validatedResponse as CombinedAnalysisData;
-            // Assert data existence since we checked validatedResponse.data above
-            contentToSanitize = combinedData.data!.executiveSummary;
-          } else if (expectedType === 'financial') {
-            const financialData = validatedResponse as FinancialAnalysisData;
-            contentToSanitize = financialData.data!.summary;
-          } else {
-            const reservationData = validatedResponse as ReservationAnalysisData;
-            contentToSanitize = reservationData.data!.summary;
-          }
-
-          // Sanitizar contenido
-          const sanitizedContent = sanitizeContent(contentToSanitize);
-
-          return {
-            success: true,
-            data: sanitizedContent,
-            sanitized: true,
-          };
-        }
-
-        // Si la respuesta indica error del servidor de IA
-        if (validatedResponse.success === false) {
-          return {
-            success: false,
-            error: validatedResponse.error || 'Error en el análisis de IA',
-          };
-        }
-
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        throw fetchError;
+        throw error;
       }
+
+      const validatedResponse = responseValidator.validate(rawResult, expectedType);
+      logDebug('Respuesta validada exitosamente', {
+        component: 'geminiService',
+        action: 'analyzeBusinessData',
+        phase: 'response_validation',
+        attempt: attempt + 1,
+        expectedType,
+        success: validatedResponse.success,
+      });
+
+      if (validatedResponse.success) {
+        const sanitizedContent = fallbackStrategy.getSanitizedSummary(validatedResponse, expectedType);
+        return {
+          success: true,
+          data: sanitizedContent,
+          sanitized: true,
+        };
+      }
+
+      if (validatedResponse.success === false) {
+        return {
+          success: false,
+          error: validatedResponse.error || 'Error en el análisis de IA',
+        };
+      }
+
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('Error desconocido');
       const errorMessage = lastError.message;
 
-      // Detectar si fue abortado por timeout
       if (errorMessage.includes('AbortError')) {
         lastAborted = true;
       }
 
-      // Si es un error de validación, no reintentar
-      if (error instanceof AIValidationError) {
-        logError(error, {
+      if (fallbackStrategy.isValidationError(error)) {
+        const validationError = error as AIValidationError;
+        logError(validationError, {
           component: 'geminiService',
           action: 'analyzeBusinessData',
           phase: 'validation_error',
           attempt: attempt + 1,
           expectedType,
           errorType: 'AIValidationError',
+          validationDetails: validationError.toDetailedString(),
         });
         return {
           success: false,
-          error: `La respuesta de la IA no es válida: ${error.message}`,
+          error: `La respuesta de la IA no es válida: ${validationError.message}`,
         };
       }
 
@@ -956,12 +674,10 @@ export const analyzeBusinessData = async (
         aborted: lastAborted,
       });
 
-      // Si es el último intento, retornar error
       if (attempt === config.maxRetries - 1) {
         break;
       }
 
-      // Reintento con backoff exponencial
       const backoffDelay = getExponentialBackoffDelay(attempt);
       config.onRetry(attempt + 1, errorMessage);
 
@@ -977,25 +693,13 @@ export const analyzeBusinessData = async (
     }
   }
 
-  // Retornar error final con contexto
   const finalErrorMessage = lastError?.message || 'Error desconocido';
-
-  let userFriendlyError: string;
-  let errorType: string;
-
-  if (lastAborted) {
-    userFriendlyError = `Solicitud cancelada o timeout (${config.timeoutMs / 1000}s). Intenta nuevamente.`;
-    errorType = 'TIMEOUT';
-  } else if (finalErrorMessage.includes('Failed to fetch')) {
-    userFriendlyError = 'No se puede conectar con el servidor. Verifica que esté ejecutándose.';
-    errorType = 'NETWORK_ERROR';
-  } else if (finalErrorMessage.includes('AbortError')) {
-    userFriendlyError = 'La solicitud fue cancelada por el usuario.';
-    errorType = 'USER_CANCELLED';
-  } else {
-    userFriendlyError = `Error después de ${config.maxRetries} intentos: ${finalErrorMessage}`;
-    errorType = 'MAX_RETRIES_EXCEEDED';
-  }
+  const { userFriendlyError, errorType } = fallbackStrategy.buildFinalErrorState(
+    finalErrorMessage,
+    lastAborted,
+    config.timeoutMs,
+    config.maxRetries
+  );
 
   logError(new Error(finalErrorMessage), {
     component: 'geminiService',
@@ -1018,3 +722,10 @@ export const analyzeBusinessData = async (
 export const geminiService = new GeminiService();
 export { GeminiService };
 export type { ApiResponse, AnalysisResult, AnalysisOptions };
+export { AIValidationError } from '@/services/responseValidator';
+export type {
+  CombinedAnalysisData,
+  FinancialAnalysisData,
+  ReservationAnalysisData,
+  ValidatedAIResponse,
+} from '@/services/responseValidator';

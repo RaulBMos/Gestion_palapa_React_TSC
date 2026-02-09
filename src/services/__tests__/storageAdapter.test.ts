@@ -5,12 +5,16 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Mock } from 'vitest';
+import type { Reservation, Transaction } from '../../types';
+import AES from 'crypto-js/aes';
+import Utf8 from 'crypto-js/enc-utf8';
 import {
     StorageAdapter,
     backupLocalStorage,
     restoreFromBackup,
     migrateLocalStorageToSupabase,
     STORAGE_KEYS,
+    resetEncryptionStateForTests,
 } from '../storageAdapter';
 import {
     MOCK_CLIENT_1,
@@ -25,6 +29,23 @@ import * as SupabaseService from '../supabaseService';
 import * as SupabaseConfig from '../../config/supabase';
 import * as Logger from '../../utils/logger';
 
+vi.mock('../../config/env', () => ({
+    VITE_ENCRYPTION_KEY: 'a'.repeat(32),
+}));
+
+const ENCRYPTION_KEY = 'a'.repeat(32);
+
+const encryptStoredArray = (value: unknown[]): string => AES.encrypt(JSON.stringify(value), ENCRYPTION_KEY).toString();
+const decryptStoredArray = <T>(cipher: string): T[] =>
+    JSON.parse(AES.decrypt(cipher, ENCRYPTION_KEY).toString(Utf8)) as T[];
+const seedEncryptedLocalStorage = <T>(key: string, value: T[]): void => {
+    localStorage.setItem(key, encryptStoredArray(value));
+};
+const readEncryptedLocalStorage = <T>(key: string): T[] => {
+    const cipher = localStorage.getItem(key);
+    return cipher ? decryptStoredArray<T>(cipher) : [];
+};
+
 // Mock Dependencies
 vi.mock('../supabaseService');
 vi.mock('../../config/supabase');
@@ -36,6 +57,7 @@ describe('StorageAdapter', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        resetEncryptionStateForTests();
         store = {};
 
         // Standard localStorage mock implementation
@@ -53,6 +75,25 @@ describe('StorageAdapter', () => {
         Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
     });
 
+    it('encrypts local payloads before persisting', async () => {
+        vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(false);
+        await StorageAdapter.addClient(MOCK_CLIENT_1);
+
+        const stored = readEncryptedLocalStorage(STORAGE_KEYS.CLIENTS);
+        expect(stored).toHaveLength(1);
+        expect(stored[0]).toEqual(expect.objectContaining({ name: MOCK_CLIENT_1.name }));
+    });
+
+    it('clears storage when decryption fails', async () => {
+        vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(false);
+        localStorage.setItem(STORAGE_KEYS.CLIENTS, 'invalid-cipher');
+
+        const result = await StorageAdapter.getClients();
+
+        expect(result).toEqual([]);
+        expect(localStorage.clear).toHaveBeenCalled();
+    });
+
     it('should save data to localStorage correctly', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(false);
 
@@ -67,9 +108,9 @@ describe('StorageAdapter', () => {
     });
 
     it('should backup all local data', () => {
-        localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(MOCK_CLIENTS));
-        localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify(MOCK_RESERVATIONS));
-        localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify([]));
+        seedEncryptedLocalStorage(STORAGE_KEYS.CLIENTS, MOCK_CLIENTS);
+        seedEncryptedLocalStorage(STORAGE_KEYS.RESERVATIONS, MOCK_RESERVATIONS);
+        seedEncryptedLocalStorage(STORAGE_KEYS.TRANSACTIONS, []);
 
         const backup = backupLocalStorage();
 
@@ -100,7 +141,7 @@ describe('StorageAdapter', () => {
     it('should fallback to local clients when Supabase fails', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
         vi.mocked(SupabaseService.fetchClients).mockRejectedValue(new Error('network'));
-        localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(MOCK_CLIENTS));
+        seedEncryptedLocalStorage(STORAGE_KEYS.CLIENTS, MOCK_CLIENTS);
 
         const result = await StorageAdapter.getClients();
 
@@ -158,34 +199,36 @@ describe('StorageAdapter', () => {
     it('should update reservation status locally when Supabase is disabled', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(false);
         const reservation = { ...MOCK_RESERVATION_1 };
-        localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify([reservation]));
+        seedEncryptedLocalStorage(STORAGE_KEYS.RESERVATIONS, [reservation]);
 
         await StorageAdapter.updateReservationStatus(reservation.id, ReservationStatus.CANCELLED);
 
-        const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESERVATIONS) || '[]');
-        expect(stored[0].status).toBe(ReservationStatus.CANCELLED);
+        const [updatedReservation] = readEncryptedLocalStorage<Reservation>(STORAGE_KEYS.RESERVATIONS);
+        expect(updatedReservation).toBeDefined();
+        expect(updatedReservation!.status).toBe(ReservationStatus.CANCELLED);
     });
 
     it('should archive reservations locally when Supabase is disabled', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(false);
         const reservation = { ...MOCK_RESERVATION_1, isArchived: false };
-        localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify([reservation]));
+        seedEncryptedLocalStorage(STORAGE_KEYS.RESERVATIONS, [reservation]);
 
         await StorageAdapter.archiveReservation(reservation.id);
 
-        const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESERVATIONS) || '[]');
-        expect(stored[0].isArchived).toBe(true);
+        const [archivedReservation] = readEncryptedLocalStorage<Reservation>(STORAGE_KEYS.RESERVATIONS);
+        expect(archivedReservation).toBeDefined();
+        expect(archivedReservation!.isArchived).toBe(true);
     });
 
     it('should delete reservations locally when Supabase is disabled', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(false);
         const reservation = { ...MOCK_RESERVATION_1 };
-        localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify([reservation]));
+        seedEncryptedLocalStorage(STORAGE_KEYS.RESERVATIONS, [reservation]);
 
         await StorageAdapter.deleteReservation(reservation.id);
 
-        const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESERVATIONS) || '[]');
-        expect(stored).toHaveLength(0);
+        const storedReservations = readEncryptedLocalStorage<Reservation>(STORAGE_KEYS.RESERVATIONS);
+        expect(storedReservations).toHaveLength(0);
     });
 
     it('should delegate deleteClient to Supabase when enabled', async () => {
@@ -205,7 +248,7 @@ describe('StorageAdapter', () => {
         expect(supabaseData).toEqual(MOCK_RESERVATIONS);
 
         vi.mocked(SupabaseService.fetchReservations).mockRejectedValueOnce(new Error('fail'));
-        localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify(MOCK_RESERVATIONS));
+        seedEncryptedLocalStorage(STORAGE_KEYS.RESERVATIONS, MOCK_RESERVATIONS);
 
         const fallbackData = await StorageAdapter.getReservations();
         expect(fallbackData).toEqual(MOCK_RESERVATIONS);
@@ -228,7 +271,7 @@ describe('StorageAdapter', () => {
         expect(remoteTransactions).toEqual(MOCK_TRANSACTIONS);
 
         vi.mocked(SupabaseService.fetchTransactions).mockRejectedValueOnce(new Error('nope'));
-        localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(MOCK_TRANSACTIONS));
+        seedEncryptedLocalStorage(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS);
 
         const fallbackTransactions = await StorageAdapter.getTransactions();
         expect(fallbackTransactions).toEqual(MOCK_TRANSACTIONS);
@@ -255,15 +298,15 @@ describe('StorageAdapter', () => {
         expect(updated.amount).toBe(created.amount + 100);
 
         await StorageAdapter.deleteTransaction(updated.id);
-        const stored = JSON.parse(localStorage.getItem(STORAGE_KEYS.TRANSACTIONS) || '[]');
+        const stored = readEncryptedLocalStorage<Transaction>(STORAGE_KEYS.TRANSACTIONS);
         expect(stored).toHaveLength(0);
     });
 
     it('should migrate localStorage data to Supabase', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
-        localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(MOCK_CLIENTS));
-        localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify(MOCK_RESERVATIONS));
-        localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(MOCK_TRANSACTIONS));
+        seedEncryptedLocalStorage(STORAGE_KEYS.CLIENTS, MOCK_CLIENTS);
+        seedEncryptedLocalStorage(STORAGE_KEYS.RESERVATIONS, MOCK_RESERVATIONS);
+        seedEncryptedLocalStorage(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS);
 
         vi.mocked(SupabaseService.createClient).mockImplementation(async (client) => ({
             ...client,
@@ -284,9 +327,9 @@ describe('StorageAdapter', () => {
 
     it('should aggregate migration errors when Supabase calls fail', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
-        localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(MOCK_CLIENTS.slice(0, 1)));
-        localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify(MOCK_RESERVATIONS.slice(0, 1)));
-        localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(MOCK_TRANSACTIONS.slice(0, 1)));
+        seedEncryptedLocalStorage(STORAGE_KEYS.CLIENTS, MOCK_CLIENTS.slice(0, 1));
+        seedEncryptedLocalStorage(STORAGE_KEYS.RESERVATIONS, MOCK_RESERVATIONS.slice(0, 1));
+        seedEncryptedLocalStorage(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS.slice(0, 1));
 
         vi.mocked(SupabaseService.createClient).mockRejectedValue(new Error('client fail'));
         vi.mocked(SupabaseService.createReservation).mockRejectedValue(new Error('reservation fail'));
@@ -325,17 +368,9 @@ describe('StorageAdapter', () => {
             transactions: MOCK_TRANSACTIONS,
         });
 
-        expect(localStorage.setItem).toHaveBeenCalledWith(
-            STORAGE_KEYS.CLIENTS,
-            JSON.stringify(MOCK_CLIENTS)
-        );
-        expect(localStorage.setItem).toHaveBeenCalledWith(
-            STORAGE_KEYS.RESERVATIONS,
-            JSON.stringify(MOCK_RESERVATIONS)
-        );
-        expect(localStorage.setItem).toHaveBeenCalledWith(
-            STORAGE_KEYS.TRANSACTIONS,
-            JSON.stringify(MOCK_TRANSACTIONS)
-        );
+        expect(localStorage.setItem).toHaveBeenCalledTimes(3);
+        expect(readEncryptedLocalStorage(STORAGE_KEYS.CLIENTS)).toEqual(MOCK_CLIENTS);
+        expect(readEncryptedLocalStorage(STORAGE_KEYS.RESERVATIONS)).toEqual(MOCK_RESERVATIONS);
+        expect(readEncryptedLocalStorage(STORAGE_KEYS.TRANSACTIONS)).toEqual(MOCK_TRANSACTIONS);
     });
 });
