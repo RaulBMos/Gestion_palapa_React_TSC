@@ -219,11 +219,7 @@ export interface ApiError {
 
 export interface PaginatedResponse<T> {
   data: T[];
-  total: number;
-  page: number;
-  limit: number;
-  hasNext: boolean;
-  hasPrev: boolean;
+  count: number | null;
 }
 
 // Form types

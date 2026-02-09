@@ -12,16 +12,16 @@ import {
   Calendar,
   Tag
 } from 'lucide-react';
-import { useData } from '@/hooks/useData';
+import { useFinancials } from '@/hooks/useFinancials';
 import { useAuth } from '@/contexts/useAuth';
 
 export function Finances() {
   const {
-    transactions,
+    data: transactions,
     addTransaction,
     updateTransaction: editTransaction,
     deleteTransaction
-  } = useData();
+  } = useFinancials();
   const { isAdmin } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TransactionType>(TransactionType.INCOME);

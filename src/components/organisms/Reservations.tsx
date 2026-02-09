@@ -11,18 +11,19 @@ import {
   User,
   Pencil,
 } from 'lucide-react';
-import { useData } from '@/hooks/useData';
+import { useReservations } from '@/hooks/useReservations';
+import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/contexts/useAuth';
 
 export function Reservations() {
   const {
-    reservations,
-    clients,
+    data: reservations,
     totalCabins: totalAvailableCabins,
     addReservation,
     updateReservation: editReservation,
     updateReservationStatus,
-  } = useData();
+  } = useReservations();
+  const { data: clients } = useClients();
 
   const { isAdmin } = useAuth();
 

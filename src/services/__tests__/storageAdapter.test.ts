@@ -51,6 +51,35 @@ vi.mock('../supabaseService');
 vi.mock('../../config/supabase');
 vi.mock('../../utils/logger');
 
+const createSupabaseClientMock = (
+    overrides: {
+        data?: unknown[];
+        error?: { message: string; code: string; details?: unknown } | null;
+    } = {}
+) => {
+    const builder: any = {
+        select: vi.fn(() => builder),
+        is: vi.fn(() => builder),
+        order: vi.fn(() => builder),
+        eq: vi.fn(() => builder),
+        range: vi.fn(async () => ({
+            data: overrides.data ?? null,
+            error: overrides.error ?? null,
+            count: Array.isArray(overrides.data) ? overrides.data.length : null,
+        })),
+    };
+
+    return {
+        auth: {
+            getUser: vi.fn(async () => ({
+                data: { user: { id: 'test-user' } },
+                error: null,
+            })),
+        },
+        from: vi.fn(() => builder),
+    } as unknown as ReturnType<typeof SupabaseConfig.getSupabaseClient>;
+};
+
 describe('StorageAdapter', () => {
     // Manual in-memory store for the mock
     let store: Record<string, string> = {};
@@ -88,9 +117,9 @@ describe('StorageAdapter', () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(false);
         localStorage.setItem(STORAGE_KEYS.CLIENTS, 'invalid-cipher');
 
-        const result = await StorageAdapter.getClients();
+        const { data } = await StorageAdapter.getClients();
 
-        expect(result).toEqual([]);
+        expect(data).toEqual([]);
         expect(localStorage.clear).toHaveBeenCalled();
     });
 
@@ -100,9 +129,9 @@ describe('StorageAdapter', () => {
         await StorageAdapter.addClient(MOCK_CLIENT_1);
 
         expect(localStorage.setItem).toHaveBeenCalled();
-        const result = await StorageAdapter.getClients();
-        expect(result).toHaveLength(1);
-        const client = result[0];
+        const { data } = await StorageAdapter.getClients();
+        expect(data).toHaveLength(1);
+        const client = data[0];
         expect(client).toBeDefined();
         expect(client!.name).toBe(MOCK_CLIENT_1.name);
     });
@@ -123,29 +152,33 @@ describe('StorageAdapter', () => {
         const getItemMock = localStorage.getItem as unknown as Mock;
         getItemMock.mockImplementationOnce(() => { throw new Error('read fail'); });
 
-        const result = await StorageAdapter.getClients();
+        const { data } = await StorageAdapter.getClients();
 
-        expect(result).toEqual([]);
+        expect(data).toEqual([]);
     });
 
-    it('should fetch from Supabase when cloud is enabled', async () => {
+    it('returns paginated clients when Supabase supplies data', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
-        vi.mocked(SupabaseService.fetchClients).mockResolvedValue(MOCK_CLIENTS);
+        const supabaseClient = createSupabaseClientMock({ data: MOCK_CLIENTS });
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as any);
 
-        const result = await StorageAdapter.getClients();
+        const { data } = await StorageAdapter.getClients();
 
-        expect(SupabaseService.fetchClients).toHaveBeenCalled();
-        expect(result).toHaveLength(MOCK_CLIENTS.length);
+        expect(data).toEqual(MOCK_CLIENTS);
+        expect(supabaseClient.from).toHaveBeenCalledWith('clients');
     });
 
-    it('should fallback to local clients when Supabase fails', async () => {
+    it('falls back to local clients when Supabase paginated query fails', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
-        vi.mocked(SupabaseService.fetchClients).mockRejectedValue(new Error('network'));
+        const supabaseClient = createSupabaseClientMock({
+            error: { message: 'network', code: '500', details: null },
+        });
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as any);
         seedEncryptedLocalStorage(STORAGE_KEYS.CLIENTS, MOCK_CLIENTS);
 
-        const result = await StorageAdapter.getClients();
+        const { data } = await StorageAdapter.getClients();
 
-        expect(result).toEqual(MOCK_CLIENTS);
+        expect(data).toEqual(MOCK_CLIENTS);
     });
 
     it('should delegate addClient to Supabase when enabled', async () => {
@@ -192,7 +225,7 @@ describe('StorageAdapter', () => {
         const result = await StorageAdapter.addReservation(reservationInput);
 
         expect(result.id).toMatch(/^reservation_/);
-        const stored = await StorageAdapter.getReservations();
+        const { data: stored } = await StorageAdapter.getReservations();
         expect(stored).toHaveLength(1);
     });
 
@@ -240,18 +273,28 @@ describe('StorageAdapter', () => {
         expect(SupabaseService.deleteClient).toHaveBeenCalledWith(MOCK_CLIENT_1.id);
     });
 
-    it('should fetch reservations from Supabase and fallback on error', async () => {
+    it('returns paginated reservations when Supabase supplies data', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
-        vi.mocked(SupabaseService.fetchReservations).mockResolvedValue(MOCK_RESERVATIONS);
+        const supabaseClient = createSupabaseClientMock({ data: MOCK_RESERVATIONS });
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as any);
 
-        const supabaseData = await StorageAdapter.getReservations();
-        expect(supabaseData).toEqual(MOCK_RESERVATIONS);
+        const { data } = await StorageAdapter.getReservations();
 
-        vi.mocked(SupabaseService.fetchReservations).mockRejectedValueOnce(new Error('fail'));
+        expect(data).toEqual(MOCK_RESERVATIONS);
+        expect(supabaseClient.from).toHaveBeenCalledWith('reservations');
+    });
+
+    it('falls back to local reservations when Supabase paginated query fails', async () => {
+        vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
+        const supabaseClient = createSupabaseClientMock({
+            error: { message: 'fail', code: '500', details: null },
+        });
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as any);
         seedEncryptedLocalStorage(STORAGE_KEYS.RESERVATIONS, MOCK_RESERVATIONS);
 
-        const fallbackData = await StorageAdapter.getReservations();
-        expect(fallbackData).toEqual(MOCK_RESERVATIONS);
+        const { data } = await StorageAdapter.getReservations();
+
+        expect(data).toEqual(MOCK_RESERVATIONS);
     });
 
     it('should update reservation status through Supabase when enabled', async () => {
@@ -263,18 +306,28 @@ describe('StorageAdapter', () => {
         expect(SupabaseService.updateReservationStatus).toHaveBeenCalledWith('res-1', ReservationStatus.CONFIRMED);
     });
 
-    it('should fetch transactions from Supabase and fallback on error', async () => {
+    it('returns paginated transactions when Supabase supplies data', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
-        vi.mocked(SupabaseService.fetchTransactions).mockResolvedValue(MOCK_TRANSACTIONS);
+        const supabaseClient = createSupabaseClientMock({ data: MOCK_TRANSACTIONS });
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as any);
 
-        const remoteTransactions = await StorageAdapter.getTransactions();
-        expect(remoteTransactions).toEqual(MOCK_TRANSACTIONS);
+        const { data } = await StorageAdapter.getTransactions();
 
-        vi.mocked(SupabaseService.fetchTransactions).mockRejectedValueOnce(new Error('nope'));
+        expect(data).toEqual(MOCK_TRANSACTIONS);
+        expect(supabaseClient.from).toHaveBeenCalledWith('transactions');
+    });
+
+    it('falls back to local transactions when Supabase paginated query fails', async () => {
+        vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
+        const supabaseClient = createSupabaseClientMock({
+            error: { message: 'nope', code: '501', details: null },
+        });
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as any);
         seedEncryptedLocalStorage(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS);
 
-        const fallbackTransactions = await StorageAdapter.getTransactions();
-        expect(fallbackTransactions).toEqual(MOCK_TRANSACTIONS);
+        const { data } = await StorageAdapter.getTransactions();
+
+        expect(data).toEqual(MOCK_TRANSACTIONS);
     });
 
     it('should delete transactions via Supabase when enabled', async () => {

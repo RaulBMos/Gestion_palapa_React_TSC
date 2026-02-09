@@ -5,7 +5,7 @@ import { Dashboard } from '@/components/organisms/Dashboard';
 import { Reservations } from '@/components/organisms/Reservations';
 import { Finances } from '@/components/organisms/Finances';
 import { Clients } from '@/components/organisms/Clients';
-import { DataProvider } from '@/contexts/DataProvider';
+import { MainDataProvider } from '@/contexts/DataProvider';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { Login } from '@/components/pages/Auth/Login';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
@@ -13,8 +13,8 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 export default function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <DataProvider>
+        <AuthProvider>
+          <MainDataProvider>
           <Routes>
             {/* Rutas Públicas - Solo Login */}
             <Route path="/login" element={<Login />} />
@@ -34,7 +34,7 @@ export default function App() {
             {/* Fallback - Redirigir a Home */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </DataProvider>
+          </MainDataProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

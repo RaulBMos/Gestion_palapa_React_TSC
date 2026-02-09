@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useData } from '@/hooks/useData';
+import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/contexts/useAuth';
 import { Client } from '@/types';
 import {
@@ -14,7 +14,13 @@ import {
 } from 'lucide-react';
 
 export function Clients() {
-  const { clients, addClient, updateClient, deleteClient, loading } = useData();
+  const {
+    data: clients,
+    loading,
+    addClient,
+    updateClient,
+    deleteClient,
+  } = useClients();
   const { isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);

@@ -16,6 +16,8 @@ const envSchema = z.object({
 
   // Clave de encriptación para datos sensibles
   VITE_ENCRYPTION_KEY: z.string().min(32, 'VITE_ENCRYPTION_KEY debe tener al menos 32 caracteres').optional(),
+  VITE_ENCRYPTION_KEY_VERSION: z.coerce.number().int().min(0).default(1),
+  VITE_ENCRYPTION_KEY_HISTORY: z.string().optional(),
 
   // Modo de desarrollo/producción
   VITE_MODE: z.enum(['development', 'production', 'test']).default('development'),
@@ -38,6 +40,8 @@ function validateEnv() {
       VITE_GEMINI_API_KEY: import.meta.env.VITE_GEMINI_API_KEY,
       VITE_API_URL: import.meta.env.VITE_API_URL,
       VITE_ENCRYPTION_KEY: import.meta.env.VITE_ENCRYPTION_KEY,
+      VITE_ENCRYPTION_KEY_VERSION: import.meta.env.VITE_ENCRYPTION_KEY_VERSION,
+      VITE_ENCRYPTION_KEY_HISTORY: import.meta.env.VITE_ENCRYPTION_KEY_HISTORY,
       VITE_MODE: import.meta.env.MODE,
       VITE_DEBUG: import.meta.env.VITE_DEBUG,
       VITE_BASE_URL: import.meta.env.BASE_URL,
@@ -84,6 +88,8 @@ export const {
   VITE_GEMINI_API_KEY,
   VITE_API_URL,
   VITE_ENCRYPTION_KEY,
+  VITE_ENCRYPTION_KEY_VERSION,
+  VITE_ENCRYPTION_KEY_HISTORY,
   VITE_MODE,
   VITE_DEBUG,
   VITE_BASE_URL,
