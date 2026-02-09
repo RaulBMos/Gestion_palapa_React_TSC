@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { AuthProvider } from '../AuthContext';
 import { useAuth } from '@/contexts/useAuth';
-import { createSupabaseMock } from '../../test/mocks/supabase.mock';
+import { createSupabaseMock, createSupabaseQueryMock } from '../../test/mocks/supabase.mock';
 
 // 1. Setup Mock Hoisted - Correcto para evitar problemas de orden en Vitest
 const { getSupabaseClientMock } = vi.hoisted(() => {
@@ -16,11 +16,12 @@ vi.mock('../../config/supabase', () => ({
 
 // Componente de Prueba - Expone el estado interno para verificar
 const TestComponent = () => {
-    const { user, loading, error, signIn, signInWithPassword, signUp, signOut } = useAuth();
+    const { user, loading, error, signIn, signInWithPassword, signUp, signOut, role } = useAuth();
     return (
         <div>
             <div data-testid="loading">{String(loading)}</div>
             <div data-testid="user-id">{user?.id || 'no-user'}</div>
+            <div data-testid="role">{role || 'no-role'}</div>
             <div data-testid="error">{error?.message || 'no-error'}</div>
 
             <button onClick={() => signIn('magic@test.com')}>Sign In Magic</button>
@@ -77,6 +78,41 @@ describe('AuthContext Integration Tests', () => {
         await waitFor(() => {
             expect(screen.getByTestId('loading').textContent).toBe('false');
             expect(screen.getByTestId('error').textContent).toBe(errorMsg);
+        });
+    });
+
+    it('defaults role to viewer when profile lookup fails', async () => {
+        mockSupabase.auth.getSession.mockResolvedValue({
+            data: { session: { user: { id: 'profile-fail' } } },
+            error: null,
+        });
+        mockSupabase.from.mockReturnValue(createSupabaseQueryMock({ data: null, error: new Error('profile fail') }));
+
+        render(
+            <AuthProvider>
+                <TestComponent />
+            </AuthProvider>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByTestId('role').textContent).toBe('viewer');
+        });
+    });
+
+    it('captures errors when Supabase client creation fails', async () => {
+        getSupabaseClientMock.mockImplementationOnce(() => {
+            throw new Error('supabase down');
+        });
+
+        render(
+            <AuthProvider>
+                <TestComponent />
+            </AuthProvider>
+        );
+
+        await waitFor(() => {
+            expect(screen.getByTestId('error').textContent).toBe('supabase down');
+            expect(screen.getByTestId('role').textContent).toBe('no-role');
         });
     });
 
