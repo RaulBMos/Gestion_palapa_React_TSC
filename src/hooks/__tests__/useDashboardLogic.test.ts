@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useDashboardLogic } from '@/hooks/useDashboardLogic';
 import { Transaction, Reservation, TransactionType, PaymentMethod, ReservationStatus } from '@/types';
 
@@ -8,23 +8,26 @@ vi.mock('@/services/geminiService', () => ({
   analyzeBusinessData: vi.fn(),
 }));
 
-// Mock del logger
+// Mock del logger (con __esModule para preservar exports nombrados)
 vi.mock('@/utils/logger', () => {
-  const mockLogger = {
-    error: vi.fn(),
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-    networkError: vi.fn(),
-    quotaExceeded: vi.fn(),
+  const logError = vi.fn();
+  const logWarning = vi.fn();
+  const logInfo = vi.fn();
+  const logDebug = vi.fn();
+  const logger = {
+    error: logError,
+    warn: logWarning,
+    info: logInfo,
+    debug: logDebug,
   };
+
   return {
-    logger: mockLogger,
-    logError: mockLogger.error,
-    logInfo: mockLogger.info,
-    logWarning: mockLogger.warn,
-    logDebug: mockLogger.debug,
-    default: mockLogger,
+    __esModule: true,
+    logger,
+    logError,
+    logWarning,
+    logInfo,
+    logDebug,
   };
 });
 
@@ -90,6 +93,10 @@ describe('useDashboardLogic', () => {
     vi.mocked(logDebug).mockReset();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   describe('1) Inicialización correcta', () => {
     it('debería inicializar con valores por defecto', () => {
       const { result } = renderHook(() =>
@@ -150,6 +157,10 @@ describe('useDashboardLogic', () => {
         await result.current.handleAiAnalysis();
       });
 
+      await vi.waitFor(() => {
+        expect(vi.mocked(analyzeBusinessData)).toHaveBeenCalled();
+      });
+
       expect(result.current.loadingAi).toBe(false);
       expect(result.current.aiError).toBe('API Error');
       expect(result.current.failureCount).toBe(1);
@@ -181,6 +192,11 @@ describe('useDashboardLogic', () => {
 
       await act(async () => {
         await result.current.handleAiAnalysis();
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current.loadingAi).toBe(false);
+        expect(vi.mocked(analyzeBusinessData)).toHaveBeenCalledTimes(2);
       });
 
       expect(result.current.failureCount).toBe(0);
@@ -224,10 +240,13 @@ describe('useDashboardLogic', () => {
         });
       }
 
-      expect(result.current.failureCount).toBe(3);
-      expect(result.current.isSystemDegraded).toBe(true);
-      expect(result.current.showFallback).toBe(true);
-      expect(result.current.aiError).toBe('Persistent API Error');
+      await vi.waitFor(() => {
+        expect(result.current.failureCount).toBe(3);
+        expect(result.current.isSystemDegraded).toBe(true);
+        expect(result.current.showFallback).toBe(true);
+        expect(result.current.aiError).toBe('Persistent API Error');
+        expect(vi.mocked(analyzeBusinessData)).toHaveBeenCalledTimes(3);
+      });
 
       // Verificar que se activó el modo degradado por 5 minutos
       expect(vi.mocked(logWarning)).toHaveBeenCalledWith(
@@ -254,6 +273,11 @@ describe('useDashboardLogic', () => {
           await result.current.handleAiAnalysis();
         });
       }
+
+      await vi.waitFor(() => {
+        expect(result.current.isSystemDegraded).toBe(true);
+        expect(vi.mocked(analyzeBusinessData)).toHaveBeenCalledTimes(3);
+      });
 
       expect(result.current.isSystemDegraded).toBe(true);
 
@@ -299,6 +323,10 @@ describe('useDashboardLogic', () => {
 
       await act(async () => {
         await result.current.handleAiAnalysis();
+      });
+
+      await vi.waitFor(() => {
+        expect(result.current.isSystemDegraded).toBe(false);
       });
 
       expect(result.current.isSystemDegraded).toBe(false);

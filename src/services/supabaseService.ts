@@ -47,6 +47,7 @@ const DB_RETRY_OPTIONS: RetryOptions = {
     baseDelay: 500,
     maxDelay: 5000,
     backoffFactor: 2,
+    circuitBreakerService: 'supabase',
     retryCondition: (error: unknown) => {
         const errorMessage = error instanceof Error ? error.message.toLowerCase() : '';
         return errorMessage.includes('network') ||

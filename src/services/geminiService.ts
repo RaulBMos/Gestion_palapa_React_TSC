@@ -338,7 +338,12 @@ class GeminiService {
     };
 
     try {
-      const retryResult = await withRetry(makeRequest, retryOptions);
+      const retryConfig = {
+        ...(retryOptions ?? {}),
+        circuitBreakerService: 'gemini'
+      };
+
+      const retryResult = await withRetry(makeRequest, retryConfig);
 
       if (retryResult.success) {
         return retryResult.data!;
