@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { ResponseValidator, AIValidationError } from '../responseValidator';
-import type { CombinedAnalysisData } from '../responseValidator';
+import type {
+  CombinedAnalysisData,
+  FinancialAnalysisData,
+  ReservationAnalysisData,
+} from '../responseValidator';
 
 const validator = new ResponseValidator();
 
@@ -19,6 +23,26 @@ const combinedResponse: CombinedAnalysisData = {
   },
 };
 
+const financialResponse: FinancialAnalysisData = {
+  success: true,
+  data: {
+    type: 'financial',
+    summary: 'financial summary',
+    insights: ['metric'],
+    confidence: 0.5,
+  },
+};
+
+const reservationResponse: ReservationAnalysisData = {
+  success: true,
+  data: {
+    type: 'reservation',
+    summary: 'reservation summary',
+    insights: ['occupancy'],
+    confidence: 0.6,
+  },
+};
+
 describe('ResponseValidator', () => {
   it('validates a combined response successfully', () => {
     const validated = validator.validate(combinedResponse, 'combined');
@@ -26,6 +50,16 @@ describe('ResponseValidator', () => {
     expect(validated.data).toBeDefined();
     const data = validated.data as NonNullable<CombinedAnalysisData['data']>;
     expect(data.executiveSummary).toBe('Executive summary');
+  });
+
+  it('validates a financial response when expectedType is financial', () => {
+    const validated = validator.validate(financialResponse, 'financial') as FinancialAnalysisData;
+    expect(validated.data?.summary).toBe('financial summary');
+  });
+
+  it('validates a reservation response when expectedType is reservation', () => {
+    const validated = validator.validate(reservationResponse, 'reservation') as ReservationAnalysisData;
+    expect(validated.data?.summary).toBe('reservation summary');
   });
 
   it('throws AIValidationError when expected fields are missing', () => {
@@ -45,5 +79,14 @@ describe('ResponseValidator', () => {
     const invalid = { success: true, data: { analysis: existingData.analysis } };
     const sanitized = validator.safeValidate(invalid, 'combined');
     expect(sanitized).toBeNull();
+  });
+
+  it('returns null when input string is malformed JSON', () => {
+    const sanitized = validator.safeValidate('not-json', 'combined');
+    expect(sanitized).toBeNull();
+  });
+
+  it('throws AIValidationError when validate receives malformed string', () => {
+    expect(() => validator.validate('not-json', 'combined')).toThrow(AIValidationError);
   });
 });
