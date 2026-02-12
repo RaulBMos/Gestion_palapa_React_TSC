@@ -1,11 +1,11 @@
-import {
+import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
 } from 'react';
+import { useReservationsContextValue } from './hooks/useReservationsContextValue';
 import {
   Reservation,
   ReservationStatus,
@@ -13,8 +13,7 @@ import {
 import { StorageAdapter } from '@/services/storageAdapter';
 import { logError, logInfo } from '@/utils/logger';
 
-export const TOTAL_CABINS = 3;
-const PAGE_SIZE = 20;
+// No imports de constantes aquí para fast refresh
 
 export interface ReservationsContextValue {
   data: Reservation[];
@@ -48,7 +47,7 @@ export function ReservationsProvider({ children }: { children: React.ReactNode }
 
     try {
       const result = await StorageAdapter.getReservations({
-        page: currentPage,
+        limit: value.pageSize,
         limit: PAGE_SIZE,
       });
       setData(result.data);
@@ -124,27 +123,21 @@ export function ReservationsProvider({ children }: { children: React.ReactNode }
     }
   }, [fetchPage]);
 
-  const value = useMemo<ReservationsContextValue>(
-    () => ({
-      data,
-      count,
-      loading,
-      error,
-      currentPage,
-      pageSize: PAGE_SIZE,
-      setPage: setCurrentPage,
-      refresh,
-      totalCabins: TOTAL_CABINS,
-      addReservation,
-      updateReservation,
-      updateReservationStatus,
-      archiveReservation,
-      deleteReservation,
-    }),
-    [data, count, loading, error, currentPage, refresh, addReservation, updateReservation, updateReservationStatus, archiveReservation, deleteReservation]
-  );
-
-  return <ReservationsContext value={value}>{children}</ReservationsContext>;
+  const value = useReservationsContextValue({
+    data,
+    count,
+    loading,
+    error,
+    currentPage,
+    setCurrentPage,
+    refresh,
+    addReservation,
+    updateReservation,
+    updateReservationStatus,
+    archiveReservation,
+    deleteReservation,
+  });
+  return <ReservationsContext.Provider value={value}>{children}</ReservationsContext.Provider>;
 }
 
 export function useReservationsContext() {
@@ -154,5 +147,3 @@ export function useReservationsContext() {
   }
   return context;
 }
-
-export { ReservationsContext };

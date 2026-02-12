@@ -1,11 +1,11 @@
-import {
+import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
 } from 'react';
+import { useClientsContextValue } from './hooks/useClientsContextValue';
 import { Client } from '@/types';
 import { StorageAdapter } from '@/services/storageAdapter';
 import { logError, logInfo } from '@/utils/logger';
@@ -24,8 +24,6 @@ export interface ClientsContextValue {
   deleteClient: (id: string) => Promise<void>;
 }
 
-const PAGE_SIZE = 25;
-
 const ClientsContext = createContext<ClientsContextValue | undefined>(undefined);
 
 export function ClientsProvider({ children }: { children: React.ReactNode }) {
@@ -42,7 +40,7 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await StorageAdapter.getClients({
         page: currentPage,
-        limit: PAGE_SIZE,
+        limit: value.pageSize,
       });
       setData(result.data);
       setCount(result.count);
@@ -97,21 +95,19 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [loadPage]);
 
-  const value = useMemo<ClientsContextValue>(() => ({
+  const value = useClientsContextValue({
     data,
     count,
     loading,
     error,
     currentPage,
-    pageSize: PAGE_SIZE,
-    setPage: setCurrentPage,
+    setCurrentPage,
     refresh,
     addClient,
     updateClient,
     deleteClient,
-  }), [data, count, loading, error, currentPage, refresh, addClient, updateClient, deleteClient]);
-
-  return <ClientsContext value={value}>{children}</ClientsContext>;
+  });
+  return <ClientsContext.Provider value={value}>{children}</ClientsContext.Provider>;
 }
 
 export function useClientsContext() {
@@ -121,5 +117,3 @@ export function useClientsContext() {
   }
   return context;
 }
-
-export { ClientsContext };

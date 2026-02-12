@@ -57,7 +57,7 @@ const createSupabaseClientMock = (
         error?: { message: string; code: string; details?: unknown } | null;
     } = {}
 ) => {
-    const builder: any = {
+    const builder: unknown = {
         select: vi.fn(() => builder),
         is: vi.fn(() => builder),
         order: vi.fn(() => builder),
@@ -160,7 +160,7 @@ describe('StorageAdapter', () => {
     it('returns paginated clients when Supabase supplies data', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
         const supabaseClient = createSupabaseClientMock({ data: MOCK_CLIENTS });
-        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as any);
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as unknown);
 
         const { data } = await StorageAdapter.getClients();
 
@@ -173,7 +173,7 @@ describe('StorageAdapter', () => {
         const supabaseClient = createSupabaseClientMock({
             error: { message: 'network', code: '500', details: null },
         });
-        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as any);
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as unknown);
         seedEncryptedLocalStorage(STORAGE_KEYS.CLIENTS, MOCK_CLIENTS);
 
         const { data } = await StorageAdapter.getClients();
@@ -276,7 +276,7 @@ describe('StorageAdapter', () => {
     it('returns paginated reservations when Supabase supplies data', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
         const supabaseClient = createSupabaseClientMock({ data: MOCK_RESERVATIONS });
-        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as any);
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as unknown);
 
         const { data } = await StorageAdapter.getReservations();
 
@@ -289,7 +289,7 @@ describe('StorageAdapter', () => {
         const supabaseClient = createSupabaseClientMock({
             error: { message: 'fail', code: '500', details: null },
         });
-        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as any);
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as unknown);
         seedEncryptedLocalStorage(STORAGE_KEYS.RESERVATIONS, MOCK_RESERVATIONS);
 
         const { data } = await StorageAdapter.getReservations();
@@ -309,7 +309,7 @@ describe('StorageAdapter', () => {
     it('returns paginated transactions when Supabase supplies data', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
         const supabaseClient = createSupabaseClientMock({ data: MOCK_TRANSACTIONS });
-        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as any);
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as unknown);
 
         const { data } = await StorageAdapter.getTransactions();
 
@@ -322,7 +322,7 @@ describe('StorageAdapter', () => {
         const supabaseClient = createSupabaseClientMock({
             error: { message: 'nope', code: '501', details: null },
         });
-        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as any);
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as unknown);
         seedEncryptedLocalStorage(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS);
 
         const { data } = await StorageAdapter.getTransactions();

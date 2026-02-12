@@ -1,16 +1,15 @@
-import {
+import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
 } from 'react';
+import { useFinancialsContextValue } from './hooks/useFinancialsContextValue';
 import { Transaction } from '@/types';
 import { StorageAdapter } from '@/services/storageAdapter';
 import { logError, logInfo } from '@/utils/logger';
 
-const PAGE_SIZE = 25;
 
 export interface FinancialsContextValue {
   data: Transaction[];
@@ -42,7 +41,7 @@ export function FinancialsProvider({ children }: { children: React.ReactNode }) 
     try {
       const result = await StorageAdapter.getTransactions({
         page: currentPage,
-        limit: PAGE_SIZE,
+        limit: value.pageSize,
       });
       setData(result.data);
       setCount(result.count);
@@ -95,24 +94,19 @@ export function FinancialsProvider({ children }: { children: React.ReactNode }) 
     }
   }, [fetchPage]);
 
-  const value = useMemo<FinancialsContextValue>(
-    () => ({
-      data,
-      count,
-      loading,
-      error,
-      currentPage,
-      pageSize: PAGE_SIZE,
-      setPage: setCurrentPage,
-      refresh,
-      addTransaction,
-      updateTransaction,
-      deleteTransaction,
-    }),
-    [data, count, loading, error, currentPage, refresh, addTransaction, updateTransaction, deleteTransaction]
-  );
-
-  return <FinancialsContext value={value}>{children}</FinancialsContext>;
+  const value = useFinancialsContextValue({
+    data,
+    count,
+    loading,
+    error,
+    currentPage,
+    setCurrentPage,
+    refresh,
+    addTransaction,
+    updateTransaction,
+    deleteTransaction,
+  });
+  return <FinancialsContext.Provider value={value}>{children}</FinancialsContext.Provider>;
 }
 
 export function useFinancialsContext() {
@@ -122,5 +116,3 @@ export function useFinancialsContext() {
   }
   return context;
 }
-
-export { FinancialsContext };

@@ -387,7 +387,7 @@ export const StorageAdapter = {
                 await ensureSupabaseUser(true);
                 const supabase = getSupabaseClient();
 
-                let query: any = supabase
+                let query: unknown = supabase
                     .from('clients')
                     .select('*', { count: 'exact' })
                     .is('deleted_at', null)
@@ -504,7 +504,7 @@ export const StorageAdapter = {
                 await ensureSupabaseUser(true);
                 const supabase = getSupabaseClient();
 
-                let query: any = supabase
+                let query: unknown = supabase
                     .from('reservations')
                     .select('*', { count: 'exact' })
                     .is('deleted_at', null)
@@ -651,7 +651,7 @@ export const StorageAdapter = {
                 await ensureSupabaseUser(true);
                 const supabase = getSupabaseClient();
 
-                let query: any = supabase
+                let query: unknown = supabase
                     .from('transactions')
                     .select('*', { count: 'exact' })
                     .is('deleted_at', null)
