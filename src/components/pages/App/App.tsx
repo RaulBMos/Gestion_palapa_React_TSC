@@ -10,6 +10,14 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { Login } from '@/components/pages/Auth/Login';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
+
+// SENSOR DE DIAGNÓSTICO TIER-1
+console.log("=== DIAGNÓSTICO DE VARIABLES DE ENTORNO ===");
+console.log("VITE_GEMINI_API_KEY detectada:", import.meta.env.VITE_GEMINI_API_KEY ? "✅ SÍ" : "❌ NO");
+console.log("VITE_SUPABASE_URL detectada:", import.meta.env.VITE_SUPABASE_URL ? "✅ SÍ" : "❌ NO");
+console.log("Modo de ejecución:", import.meta.env.MODE);
+console.log("==========================================");
+
 export default function App() {
   return (
     <ErrorBoundary>
