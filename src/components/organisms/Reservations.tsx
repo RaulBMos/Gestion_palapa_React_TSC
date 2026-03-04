@@ -109,7 +109,7 @@ export function Reservations() {
       r.status === ReservationStatus.CONFIRMED &&
       r.id !== excludeReservationId &&
       r.startDate <= dateStr &&
-      r.endDate > dateStr
+      r.endDate >= dateStr
     );
 
     const occupiedCount = activeReservations.reduce((acc, r) => acc + r.cabinCount, 0);
