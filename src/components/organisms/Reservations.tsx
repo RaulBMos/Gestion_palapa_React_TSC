@@ -10,10 +10,18 @@ import {
   List,
   User,
   Pencil,
+  Trash2,
+  UserPlus,
 } from 'lucide-react';
 import { useReservations } from '@/hooks/useReservations';
 import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/contexts/useAuth';
+
+interface NewClientData {
+  name: string;
+  email: string;
+  phone: string;
+}
 
 export function Reservations() {
   const {
@@ -24,16 +32,17 @@ export function Reservations() {
     updateReservationStatus,
     deleteReservation,
   } = useReservations();
-    // Eliminar reserva con confirmación
-    const handleDeleteReservation = async (id: string) => {
-      if (!isAdmin) return;
-      if (window.confirm('¿Seguro que deseas eliminar esta reserva? Esta acción no se puede deshacer.')) {
-        await deleteReservation(id);
-      }
-    };
-  const { data: clients } = useClients();
-
+  
+  const { data: clients, addClient } = useClients();
   const { isAdmin } = useAuth();
+
+  // Estado para cliente nuevo
+  const [isNewClient, setIsNewClient] = useState(false);
+  const [newClientData, setNewClientData] = useState<NewClientData>({
+    name: '',
+    email: '',
+    phone: ''
+  });
 
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar');
   const [listTab, setListTab] = useState<'active' | 'history'>('active');
@@ -112,6 +121,8 @@ export function Reservations() {
     if (!isAdmin) return;
     setNewRes({ ...res });
     setEditingId(res.id);
+    setIsNewClient(false);
+    setNewClientData({ name: '', email: '', phone: '' });
     if (res.startDate) {
       const parts = res.startDate.split('-').map(Number);
       if (parts.length === 3 && parts[0] !== undefined && parts[1] !== undefined) {
@@ -136,7 +147,35 @@ export function Reservations() {
     });
     setEditingId(null);
     setPickerMonth(today);
+    setIsNewClient(false);
+    setNewClientData({ name: '', email: '', phone: '' });
     setShowForm(true);
+  };
+
+  const handleDeleteReservation = async (id: string) => {
+    if (!isAdmin) return;
+    if (window.confirm('¿Seguro que deseas eliminar esta reserva? Esta acción no se puede deshacer.')) {
+      await deleteReservation(id);
+    }
+  };
+
+  const handleDeleteFromForm = () => {
+    if (!editingId || !isAdmin) return;
+    if (window.confirm('¿Seguro que deseas eliminar esta reserva? Esta acción no se puede deshacer.')) {
+      deleteReservation(editingId);
+      setShowForm(false);
+      setEditingId(null);
+    }
+  };
+
+  const handleClientChange = (clientId: string) => {
+    if (clientId === 'NEW') {
+      setIsNewClient(true);
+      setNewRes({ ...newRes, clientId: '' });
+    } else {
+      setIsNewClient(false);
+      setNewRes({ ...newRes, clientId });
+    }
   };
 
   const handleDateClick = (dateStr: string) => {
@@ -155,10 +194,29 @@ export function Reservations() {
     e.preventDefault();
     if (!isAdmin) return;
 
-    if (newRes.clientId && newRes.cabinCount && newRes.startDate && newRes.endDate && newRes.totalAmount !== undefined) {
+    let clientId = newRes.clientId;
+
+    // Si es cliente nuevo, primero crear el cliente
+    if (isNewClient && newClientData.name && newClientData.email && newClientData.phone) {
+      try {
+        await addClient({
+          name: newClientData.name,
+          email: newClientData.email,
+          phone: newClientData.phone
+        });
+        // Obtener el ID del cliente recien creado (el ultimo)
+        const newClient = clients.find(c => c.email === newClientData.email);
+        clientId = newClient?.id;
+      } catch (err) {
+        console.error('Error creating client:', err);
+        return;
+      }
+    }
+
+    if (clientId && newRes.cabinCount && newRes.startDate && newRes.endDate && newRes.totalAmount !== undefined) {
       const reservationData: Reservation = {
         id: editingId || Date.now().toString(),
-        clientId: newRes.clientId,
+        clientId: clientId,
         cabinCount: newRes.cabinCount,
         startDate: newRes.startDate,
         endDate: newRes.endDate,
@@ -177,6 +235,8 @@ export function Reservations() {
 
       setShowForm(false);
       setEditingId(null);
+      setIsNewClient(false);
+      setNewClientData({ name: '', email: '', phone: '' });
     }
   };
 
@@ -351,16 +411,78 @@ export function Reservations() {
               <button onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-6 h-6 text-gray-400" /></button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Selector de cliente */}
               <div>
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Cliente</label>
+                <div className="mt-2 flex gap-2">
+                  <select
+                    className="flex-1 p-4 bg-gray-50 border border-gray-100 rounded-2xl font-medium outline-none"
+                    value={isNewClient ? 'NEW' : (newRes.clientId || '')}
+                    onChange={e => handleClientChange(e.target.value)}
+                    disabled={!!editingId}
+                  >
+                    <option value="">Seleccionar Cliente</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    <option value="NEW">+ Nuevo Cliente</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Campos de cliente nuevo */}
+              {isNewClient && (
+                <div className="bg-indigo-50 p-4 rounded-2xl space-y-4">
+                  <div className="flex items-center gap-2 text-indigo-700">
+                    <UserPlus className="w-4 h-4" />
+                    <span className="text-xs font-bold uppercase">Datos del Cliente</span>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase ml-1">Nombre</label>
+                    <input
+                      type="text"
+                      className="w-full mt-1 p-3 bg-white border border-indigo-100 rounded-xl outline-none"
+                      value={newClientData.name}
+                      onChange={e => setNewClientData({ ...newClientData, name: e.target.value })}
+                      placeholder="Nombre completo"
+                      required={isNewClient}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase ml-1">Correo</label>
+                    <input
+                      type="email"
+                      className="w-full mt-1 p-3 bg-white border border-indigo-100 rounded-xl outline-none"
+                      value={newClientData.email}
+                      onChange={e => setNewClientData({ ...newClientData, email: e.target.value })}
+                      placeholder="correo@ejemplo.com"
+                      required={isNewClient}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase ml-1">Teléfono</label>
+                    <input
+                      type="tel"
+                      className="w-full mt-1 p-3 bg-white border border-indigo-100 rounded-xl outline-none"
+                      value={newClientData.phone}
+                      onChange={e => setNewClientData({ ...newClientData, phone: e.target.value })}
+                      placeholder="Número de teléfono"
+                      required={isNewClient}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Selector de estado */}
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Estado</label>
                 <select
                   className="w-full mt-2 p-4 bg-gray-50 border border-gray-100 rounded-2xl font-medium outline-none"
-                  value={newRes.clientId || ''}
-                  onChange={e => setNewRes({ ...newRes, clientId: e.target.value })}
-                  required
+                  value={newRes.status || ReservationStatus.INFORMATION}
+                  onChange={e => setNewRes({ ...newRes, status: e.target.value as ReservationStatus })}
                 >
-                  <option value="">Seleccionar Cliente</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  <option value={ReservationStatus.INFORMATION}>Información</option>
+                  <option value={ReservationStatus.CONFIRMED}>Confirmada</option>
+                  <option value={ReservationStatus.COMPLETED}>Completada</option>
+                  <option value={ReservationStatus.CANCELLED}>Cancelada</option>
                 </select>
               </div>
 
@@ -386,20 +508,36 @@ export function Reservations() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Cabañas</label>
                   <input type="number" min="1" max={totalAvailableCabins} className="w-full mt-2 p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold" value={newRes.cabinCount} onChange={e => setNewRes({ ...newRes, cabinCount: Number(e.target.value) })} />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Total ($)</label>
-                  <input type="number" min="0" className="w-full mt-2 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl font-bold text-indigo-700 font-mono" value={newRes.totalAmount} onChange={e => setNewRes({ ...newRes, totalAmount: Number(e.target.value) })} />
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Adultos</label>
+                  <input type="number" min="1" className="w-full mt-2 p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold" value={newRes.adults} onChange={e => setNewRes({ ...newRes, adults: Number(e.target.value) })} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Niños</label>
+                  <input type="number" min="0" className="w-full mt-2 p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold" value={newRes.children} onChange={e => setNewRes({ ...newRes, children: Number(e.target.value) })} />
                 </div>
               </div>
 
-              <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700">
-                {editingId ? 'Actualizar Reserva' : 'Confirmar Reserva'}
-              </button>
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Total ($)</label>
+                <input type="number" min="0" className="w-full mt-2 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl font-bold text-indigo-700 font-mono" value={newRes.totalAmount} onChange={e => setNewRes({ ...newRes, totalAmount: Number(e.target.value) })} />
+              </div>
+
+              <div className="flex gap-4">
+                {editingId && (
+                  <button type="button" onClick={handleDeleteFromForm} className="flex-1 py-4 bg-red-50 text-red-600 rounded-2xl font-bold border border-red-200 flex items-center justify-center gap-2 transition-all hover:bg-red-100">
+                    <Trash2 className="w-5 h-5" /> Eliminar
+                  </button>
+                )}
+                <button type="submit" className={`${editingId ? 'flex-1' : 'w-full'} py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700`}>
+                  {editingId ? 'Actualizar Reserva' : 'Confirmar Reserva'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
