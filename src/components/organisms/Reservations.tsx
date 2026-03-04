@@ -199,14 +199,12 @@ export function Reservations() {
     // Si es cliente nuevo, primero crear el cliente
     if (isNewClient && newClientData.name && newClientData.email && newClientData.phone) {
       try {
-        await addClient({
+        const createdClient = await addClient({
           name: newClientData.name,
           email: newClientData.email,
           phone: newClientData.phone
         });
-        // Obtener el ID del cliente recien creado (el ultimo)
-        const newClient = clients.find(c => c.email === newClientData.email);
-        clientId = newClient?.id;
+        clientId = createdClient.id;
       } catch (err) {
         console.error('Error creating client:', err);
         return;

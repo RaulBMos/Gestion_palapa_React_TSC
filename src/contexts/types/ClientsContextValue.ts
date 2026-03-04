@@ -8,7 +8,7 @@ export interface ClientsContextValue {
   pageSize: number;
   setPage: (page: number) => void;
   refresh: () => Promise<void>;
-  addClient: (client: Omit<Client, 'id'>) => Promise<void>;
+  addClient: (client: Omit<Client, 'id'>) => Promise<Client>;
   updateClient: (client: Client) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
 }

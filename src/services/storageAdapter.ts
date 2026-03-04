@@ -346,7 +346,7 @@ const mapDbReservationToReservation = (row: DbReservation): Reservation => ({
     children: row.children,
     totalAmount: row.total_amount,
     status: row.status as ReservationStatus,
-    isArchived: row.is_archived || undefined,
+    isArchived: typeof row.is_archived === 'boolean' ? row.is_archived : undefined,
 });
 
 const mapDbTransactionToTransaction = (row: DbTransaction): Transaction => ({

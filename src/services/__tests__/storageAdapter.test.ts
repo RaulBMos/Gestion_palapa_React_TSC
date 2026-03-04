@@ -32,7 +32,7 @@ import * as Logger from '../../utils/logger';
 // Mock debe estar antes de cualquier importación o variable para que sea hoisted correctamente
 // Usar una clave simple de 32 caracteres repetidos para evitar problemas de encoding
 vi.mock('../../config/env', async (importOriginal) => {
-    const actual = await importOriginal();
+    const actual = (await importOriginal()) as Record<string, unknown>;
     const testKey = 'a'.repeat(32);
     return {
         ...actual,
@@ -46,15 +46,43 @@ vi.mock('../../config/env', async (importOriginal) => {
 // Usamos el mismo valor de clave que en el mock para asegurar que decryption funciona
 // Esto es lo que se obtiene de VITE_ENCRYPTION_KEY, sin prefijos
 const ENCRYPTION_KEY = 'a'.repeat(32);
-const encryptStoredArray = (value: unknown[]): string => AES.encrypt(JSON.stringify(value), ENCRYPTION_KEY).toString();
-const decryptStoredArray = <T>(cipher: string): T[] =>
-    JSON.parse(AES.decrypt(cipher, ENCRYPTION_KEY).toString(Utf8)) as T[];
-const seedEncryptedLocalStorage = <T>(key: string, value: T[]): void => {
-    localStorage.setItem(key, encryptStoredArray(value));
+const CURRENT_TEST_ENCRYPTION_VERSION = 1;
+
+const wrapPayload = (payload: string, version = CURRENT_TEST_ENCRYPTION_VERSION): string => {
+    const cipher = AES.encrypt(payload, ENCRYPTION_KEY).toString();
+    return JSON.stringify({
+        v: version,
+        d: cipher,
+        t: new Date().toISOString(),
+    });
 };
+
+const readEncryptedPayload = (raw: string): string => {
+    const parsed = JSON.parse(raw) as { v?: number; d?: string };
+    if (parsed && typeof parsed === 'object' && typeof parsed.d === 'string') {
+        if (parsed.v === 0) {
+            return parsed.d;
+        }
+        const decrypted = AES.decrypt(parsed.d, ENCRYPTION_KEY).toString(Utf8);
+        return decrypted;
+    }
+
+    throw new Error('Unsupported encrypted payload format');
+};
+
+const seedEncryptedLocalStorage = <T>(key: string, value: T[]): void => {
+    const payload = JSON.stringify(value);
+    localStorage.setItem(key, wrapPayload(payload));
+};
+
 const readEncryptedLocalStorage = <T>(key: string): T[] => {
-    const cipher = localStorage.getItem(key);
-    return cipher ? decryptStoredArray<T>(cipher) : [];
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+        return [];
+    }
+
+    const payload = readEncryptedPayload(raw);
+    return JSON.parse(payload) as T[];
 };
 
 // Mock Dependencies
@@ -67,7 +95,7 @@ const createSupabaseClientMock = (
         data?: unknown[];
         error?: { message: string; code: string; details?: unknown } | null;
     } = {}
-) => {
+): ReturnType<typeof SupabaseConfig.getSupabaseClient> => {
     const builder: unknown = {
         select: vi.fn(() => builder),
         is: vi.fn(() => builder),
@@ -90,6 +118,30 @@ const createSupabaseClientMock = (
         from: vi.fn(() => builder),
     } as unknown as ReturnType<typeof SupabaseConfig.getSupabaseClient>;
 };
+
+const toDbReservationRow = (reservation: Reservation) => ({
+    id: reservation.id,
+    client_id: reservation.clientId,
+    cabin_count: reservation.cabinCount,
+    start_date: reservation.startDate,
+    end_date: reservation.endDate,
+    adults: reservation.adults,
+    children: reservation.children,
+    total_amount: reservation.totalAmount,
+    status: reservation.status,
+    is_archived: reservation.isArchived ?? false,
+});
+
+const toDbTransactionRow = (transaction: Transaction) => ({
+    id: transaction.id,
+    date: transaction.date,
+    amount: transaction.amount,
+    type: transaction.type,
+    category: transaction.category,
+    description: transaction.description,
+    payment_method: transaction.paymentMethod,
+    reservation_id: transaction.reservationId,
+});
 
 describe('StorageAdapter', () => {
     // Manual in-memory store for the mock
@@ -171,7 +223,7 @@ describe('StorageAdapter', () => {
     it('returns paginated clients when Supabase supplies data', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
         const supabaseClient = createSupabaseClientMock({ data: MOCK_CLIENTS });
-        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as unknown);
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient);
 
         const { data } = await StorageAdapter.getClients();
 
@@ -184,7 +236,7 @@ describe('StorageAdapter', () => {
         const supabaseClient = createSupabaseClientMock({
             error: { message: 'network', code: '500', details: null },
         });
-        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as unknown);
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient);
         seedEncryptedLocalStorage(STORAGE_KEYS.CLIENTS, MOCK_CLIENTS);
 
         const { data } = await StorageAdapter.getClients();
@@ -286,8 +338,8 @@ describe('StorageAdapter', () => {
 
     it('returns paginated reservations when Supabase supplies data', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
-        const supabaseClient = createSupabaseClientMock({ data: MOCK_RESERVATIONS });
-        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as unknown);
+        const supabaseClient = createSupabaseClientMock({ data: MOCK_RESERVATIONS.map(toDbReservationRow) });
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient);
 
         const { data } = await StorageAdapter.getReservations();
 
@@ -300,7 +352,7 @@ describe('StorageAdapter', () => {
         const supabaseClient = createSupabaseClientMock({
             error: { message: 'fail', code: '500', details: null },
         });
-        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as unknown);
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient);
         seedEncryptedLocalStorage(STORAGE_KEYS.RESERVATIONS, MOCK_RESERVATIONS);
 
         const { data } = await StorageAdapter.getReservations();
@@ -319,8 +371,8 @@ describe('StorageAdapter', () => {
 
     it('returns paginated transactions when Supabase supplies data', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
-        const supabaseClient = createSupabaseClientMock({ data: MOCK_TRANSACTIONS });
-        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as unknown);
+        const supabaseClient = createSupabaseClientMock({ data: MOCK_TRANSACTIONS.map(toDbTransactionRow) });
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient);
 
         const { data } = await StorageAdapter.getTransactions();
 
@@ -333,7 +385,7 @@ describe('StorageAdapter', () => {
         const supabaseClient = createSupabaseClientMock({
             error: { message: 'nope', code: '501', details: null },
         });
-        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient as unknown);
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient);
         seedEncryptedLocalStorage(STORAGE_KEYS.TRANSACTIONS, MOCK_TRANSACTIONS);
 
         const { data } = await StorageAdapter.getTransactions();

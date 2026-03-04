@@ -8,7 +8,7 @@ export function useClientsContextValue({
   loading,
   error,
   currentPage,
-  setCurrentPage,
+  setPage,
   refresh,
   addClient,
   updateClient,
@@ -19,9 +19,9 @@ export function useClientsContextValue({
   loading: boolean;
   error: string | null;
   currentPage: number;
-  setCurrentPage: (page: number) => void;
+  setPage: (page: number) => void;
   refresh: () => Promise<void>;
-  addClient: (client: Omit<Client, 'id'>) => Promise<void>;
+  addClient: (client: Omit<Client, 'id'>) => Promise<Client>;
   updateClient: (client: Client) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
 }): ClientsContextValue {
@@ -33,12 +33,12 @@ export function useClientsContextValue({
       error,
       currentPage,
       pageSize: PAGE_SIZE,
-      setPage: setCurrentPage,
+      setPage: setPage,
       refresh,
       addClient,
       updateClient,
       deleteClient,
     }),
-    [data, count, loading, error, currentPage, setCurrentPage, refresh, addClient, updateClient, deleteClient]
+    [data, count, loading, error, currentPage, setPage, refresh, addClient, updateClient, deleteClient]
   );
 }

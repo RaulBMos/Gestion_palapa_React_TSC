@@ -48,11 +48,12 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
     return loadPage();
   }, [loadPage]);
 
-  const addClient = useCallback(async (client: Omit<Client, 'id'>) => {
+  const addClient = useCallback(async (client: Omit<Client, 'id'>): Promise<Client> => {
     try {
-      await StorageAdapter.addClient(client);
+      const newClient = await StorageAdapter.addClient(client);
       await loadPage();
       logInfo('Client added through context');
+      return newClient;
     } catch (err) {
       logError(err as Error, { component: 'ClientsContext', action: 'addClient' });
       throw err;
@@ -81,13 +82,17 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [loadPage]);
 
+  const setPage = useCallback((page: number) => {
+    setCurrentPage(page);
+  }, []);
+
   const value = useClientsContextValue({
     data,
     count,
     loading,
     error,
     currentPage,
-    setCurrentPage,
+    setPage,
     refresh,
     addClient,
     updateClient,
