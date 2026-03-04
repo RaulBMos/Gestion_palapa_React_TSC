@@ -371,7 +371,7 @@ export function Reservations() {
                   {isAdmin && (
                     <div className="flex gap-2">
                       <button onClick={() => handleEditClick(res)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Pencil className="w-4 h-4" /></button>
-                      <button onClick={() => handleDeleteReservation(res.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Eliminar"><X className="w-4 h-4" /></button>
+                      <button onClick={() => handleDeleteReservation(res.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Eliminar"><Trash2 className="w-4 h-4" /></button>
                       <select
                         className="px-2 py-1 rounded-lg text-xs font-bold border border-gray-200"
                         value={res.status}
