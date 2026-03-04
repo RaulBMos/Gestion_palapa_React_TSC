@@ -1,7 +1,6 @@
 import React, {
   createContext,
   useCallback,
-  useContext,
   useEffect,
   useState,
 } from 'react';
@@ -12,25 +11,11 @@ import {
 } from '@/types';
 import { StorageAdapter } from '@/services/storageAdapter';
 import { logError, logInfo } from '@/utils/logger';
+import { PAGE_SIZE } from './constants/ReservationsContext.constants';
 
 // No imports de constantes aquí para fast refresh
 
-export interface ReservationsContextValue {
-  data: Reservation[];
-  count: number | null;
-  loading: boolean;
-  error: string | null;
-  currentPage: number;
-  pageSize: number;
-  setPage: (page: number) => void;
-  refresh: () => Promise<void>;
-  totalCabins: number;
-  addReservation: (reservation: Omit<Reservation, 'id'>) => Promise<void>;
-  updateReservation: (reservation: Reservation) => Promise<void>;
-  updateReservationStatus: (id: string, status: ReservationStatus) => Promise<void>;
-  archiveReservation: (id: string) => Promise<void>;
-  deleteReservation: (id: string) => Promise<void>;
-}
+import { ReservationsContextValue } from './types/ReservationsContextValue';
 
 const ReservationsContext = createContext<ReservationsContextValue | undefined>(undefined);
 
@@ -47,7 +32,6 @@ export function ReservationsProvider({ children }: { children: React.ReactNode }
 
     try {
       const result = await StorageAdapter.getReservations({
-        limit: value.pageSize,
         limit: PAGE_SIZE,
       });
       setData(result.data);
@@ -140,10 +124,3 @@ export function ReservationsProvider({ children }: { children: React.ReactNode }
   return <ReservationsContext.Provider value={value}>{children}</ReservationsContext.Provider>;
 }
 
-export function useReservationsContext() {
-  const context = useContext(ReservationsContext);
-  if (!context) {
-    throw new Error('useReservationsContext must be used within ReservationsProvider');
-  }
-  return context;
-}

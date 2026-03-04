@@ -22,7 +22,15 @@ export function Reservations() {
     addReservation,
     updateReservation: editReservation,
     updateReservationStatus,
+    deleteReservation,
   } = useReservations();
+    // Eliminar reserva con confirmación
+    const handleDeleteReservation = async (id: string) => {
+      if (!isAdmin) return;
+      if (window.confirm('¿Seguro que deseas eliminar esta reserva? Esta acción no se puede deshacer.')) {
+        await deleteReservation(id);
+      }
+    };
   const { data: clients } = useClients();
 
   const { isAdmin } = useAuth();
@@ -305,9 +313,17 @@ export function Reservations() {
                   {isAdmin && (
                     <div className="flex gap-2">
                       <button onClick={() => handleEditClick(res)} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Pencil className="w-4 h-4" /></button>
-                      {res.status === ReservationStatus.INFORMATION && (
-                        <button onClick={() => updateReservationStatus(res.id, ReservationStatus.CONFIRMED)} className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold">Confirmar</button>
-                      )}
+                      <button onClick={() => handleDeleteReservation(res.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Eliminar"><X className="w-4 h-4" /></button>
+                      <select
+                        className="px-2 py-1 rounded-lg text-xs font-bold border border-gray-200"
+                        value={res.status}
+                        onChange={e => updateReservationStatus(res.id, e.target.value as ReservationStatus)}
+                      >
+                        <option value={ReservationStatus.INFORMATION}>Información</option>
+                        <option value={ReservationStatus.CONFIRMED}>Confirmada</option>
+                        <option value={ReservationStatus.COMPLETED}>Completada</option>
+                        <option value={ReservationStatus.CANCELLED}>Cancelada</option>
+                      </select>
                     </div>
                   )}
                 </div>

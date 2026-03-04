@@ -1,7 +1,6 @@
 import React, {
   createContext,
   useCallback,
-  useContext,
   useEffect,
   useState,
 } from 'react';
@@ -9,21 +8,10 @@ import { useFinancialsContextValue } from './hooks/useFinancialsContextValue';
 import { Transaction } from '@/types';
 import { StorageAdapter } from '@/services/storageAdapter';
 import { logError, logInfo } from '@/utils/logger';
+import { PAGE_SIZE } from './constants/FinancialsContext.constants';
 
 
-export interface FinancialsContextValue {
-  data: Transaction[];
-  count: number | null;
-  loading: boolean;
-  error: string | null;
-  currentPage: number;
-  pageSize: number;
-  setPage: (page: number) => void;
-  refresh: () => Promise<void>;
-  addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
-  updateTransaction: (transaction: Transaction) => Promise<void>;
-  deleteTransaction: (id: string) => Promise<void>;
-}
+import { FinancialsContextValue } from './types/FinancialsContextValue';
 
 const FinancialsContext = createContext<FinancialsContextValue | undefined>(undefined);
 
@@ -41,7 +29,7 @@ export function FinancialsProvider({ children }: { children: React.ReactNode }) 
     try {
       const result = await StorageAdapter.getTransactions({
         page: currentPage,
-        limit: value.pageSize,
+        limit: PAGE_SIZE,
       });
       setData(result.data);
       setCount(result.count);
@@ -109,10 +97,3 @@ export function FinancialsProvider({ children }: { children: React.ReactNode }) 
   return <FinancialsContext.Provider value={value}>{children}</FinancialsContext.Provider>;
 }
 
-export function useFinancialsContext() {
-  const context = useContext(FinancialsContext);
-  if (!context) {
-    throw new Error('useFinancialsContext must be used within FinancialsProvider');
-  }
-  return context;
-}
