@@ -1,7 +1,7 @@
 import React from 'react';
 import { PAGE_SIZE } from '../constants/ClientsContext.constants';
 import type { Client } from '@/types';
-import type { ClientsContextValue } from '../ClientsContext';
+import type { ClientsContextValue } from '../types/ClientsContextValue';
 export function useClientsContextValue({
   data,
   count,

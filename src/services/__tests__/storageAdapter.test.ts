@@ -29,12 +29,23 @@ import * as SupabaseService from '../supabaseService';
 import * as SupabaseConfig from '../../config/supabase';
 import * as Logger from '../../utils/logger';
 
-vi.mock('../../config/env', () => ({
-    VITE_ENCRYPTION_KEY: 'a'.repeat(32),
-}));
+// Mock debe estar antes de cualquier importación o variable para que sea hoisted correctamente
+// Usar una clave simple de 32 caracteres repetidos para evitar problemas de encoding
+vi.mock('../../config/env', async (importOriginal) => {
+    const actual = await importOriginal();
+    const testKey = 'a'.repeat(32);
+    return {
+        ...actual,
+        VITE_ENCRYPTION_KEY: testKey,
+        VITE_ENCRYPTION_KEY_VERSION: '1',
+        // parseEncryptionHistory espera un JSON con versiones como claves
+        VITE_ENCRYPTION_KEY_HISTORY: JSON.stringify({ '1': testKey }),
+    };
+});
 
+// Usamos el mismo valor de clave que en el mock para asegurar que decryption funciona
+// Esto es lo que se obtiene de VITE_ENCRYPTION_KEY, sin prefijos
 const ENCRYPTION_KEY = 'a'.repeat(32);
-
 const encryptStoredArray = (value: unknown[]): string => AES.encrypt(JSON.stringify(value), ENCRYPTION_KEY).toString();
 const decryptStoredArray = <T>(cipher: string): T[] =>
     JSON.parse(AES.decrypt(cipher, ENCRYPTION_KEY).toString(Utf8)) as T[];

@@ -1,5 +1,4 @@
 import React, {
-  createContext,
   useCallback,
   useEffect,
   useState,
@@ -15,9 +14,7 @@ import { PAGE_SIZE } from './constants/ReservationsContext.constants';
 
 // No imports de constantes aquí para fast refresh
 
-import { ReservationsContextValue } from './types/ReservationsContextValue';
-
-const ReservationsContext = createContext<ReservationsContextValue | undefined>(undefined);
+import { ReservationsContext } from './ReservationsContextContext';
 
 export function ReservationsProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<Reservation[]>([]);
@@ -28,8 +25,6 @@ export function ReservationsProvider({ children }: { children: React.ReactNode }
 
   const fetchPage = useCallback(async () => {
     setLoading(true);
-    setError(null);
-
     try {
       const result = await StorageAdapter.getReservations({
         limit: PAGE_SIZE,

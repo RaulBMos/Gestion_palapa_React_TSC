@@ -18,20 +18,14 @@ export function useSafeLocalStorage<T>(key: string, initialValue: T): [T, (value
   // Estado para el valor actual - usando lazy initializer
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
-      // Verificar que localStorage está disponible
       if (typeof window === 'undefined') {
         return initialValue;
       }
-
-      // Obtener el valor de localStorage
       const item = window.localStorage.getItem(key);
-
       if (item === null) {
-        // No existe la clave, retornar valor inicial
-        return initialValue;
+        // Si el valor inicial es undefined, retorna undefined, si no, el inicial
+        return initialValue === undefined ? undefined : initialValue;
       }
-
-      // Validar que sea JSON válido antes de parsear
       try {
         const parsed = JSON.parse(item);
         return parsed as T;

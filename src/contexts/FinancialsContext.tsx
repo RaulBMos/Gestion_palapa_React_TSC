@@ -1,19 +1,14 @@
 import React, {
-  createContext,
   useCallback,
   useEffect,
   useState,
 } from 'react';
+import { FinancialsContext } from './FinancialsContextContext';
 import { useFinancialsContextValue } from './hooks/useFinancialsContextValue';
 import { Transaction } from '@/types';
 import { StorageAdapter } from '@/services/storageAdapter';
 import { logError, logInfo } from '@/utils/logger';
 import { PAGE_SIZE } from './constants/FinancialsContext.constants';
-
-
-import { FinancialsContextValue } from './types/FinancialsContextValue';
-
-const FinancialsContext = createContext<FinancialsContextValue | undefined>(undefined);
 
 export function FinancialsProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<Transaction[]>([]);

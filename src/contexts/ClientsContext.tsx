@@ -1,5 +1,4 @@
 import React, {
-  createContext,
   useCallback,
   useEffect,
   useState,
@@ -9,9 +8,7 @@ import { Client } from '@/types';
 import { StorageAdapter } from '@/services/storageAdapter';
 import { logError, logInfo } from '@/utils/logger';
 import { PAGE_SIZE } from './constants/ClientsContext.constants';
-
-
-import { ClientsContextValue } from './types/ClientsContextValue';
+import { ClientsContext } from './ClientsContextContext';
 
 export function ClientsProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<Client[]>([]);
@@ -96,4 +93,3 @@ export function ClientsProvider({ children }: { children: React.ReactNode }) {
   });
   return <ClientsContext.Provider value={value}>{children}</ClientsContext.Provider>;
 }
-
