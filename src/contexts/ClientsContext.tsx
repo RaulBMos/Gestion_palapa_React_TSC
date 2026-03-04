@@ -10,9 +10,8 @@ import { StorageAdapter } from '@/services/storageAdapter';
 import { logError, logInfo } from '@/utils/logger';
 import { PAGE_SIZE } from './constants/ClientsContext.constants';
 
-import { ClientsContextValue } from './types/ClientsContextValue';
 
-const ClientsContext = createContext<ClientsContextValue | undefined>(undefined);
+import { ClientsContextValue } from './types/ClientsContextValue';
 
 export function ClientsProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<Client[]>([]);
