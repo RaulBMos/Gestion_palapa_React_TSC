@@ -402,8 +402,8 @@ export function Reservations() {
 
       {/* Modal de Formulario */}
       {showForm && (
-        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-lg p-4 sm:p-8 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-2xl font-bold text-gray-900">{editingId ? 'Actualizar Reserva' : 'Nueva Reserva'}</h3>
               <button onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-6 h-6 text-gray-400" /></button>
@@ -506,18 +506,18 @@ export function Reservations() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Cabañas</label>
-                  <input type="number" min="1" max={totalAvailableCabins} className="w-full mt-2 p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold" value={newRes.cabinCount} onChange={e => setNewRes({ ...newRes, cabinCount: Number(e.target.value) })} />
+                  <input type="number" min="1" max={totalAvailableCabins} className="w-full mt-2 p-2 sm:p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm sm:text-base" value={newRes.cabinCount} onChange={e => setNewRes({ ...newRes, cabinCount: Number(e.target.value) })} />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Adultos</label>
-                  <input type="number" min="1" className="w-full mt-2 p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold" value={newRes.adults} onChange={e => setNewRes({ ...newRes, adults: Number(e.target.value) })} />
+                  <input type="number" min="1" className="w-full mt-2 p-2 sm:p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm sm:text-base" value={newRes.adults} onChange={e => setNewRes({ ...newRes, adults: Number(e.target.value) })} />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Niños</label>
-                  <input type="number" min="0" className="w-full mt-2 p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold" value={newRes.children} onChange={e => setNewRes({ ...newRes, children: Number(e.target.value) })} />
+                  <input type="number" min="0" className="w-full mt-2 p-2 sm:p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm sm:text-base" value={newRes.children} onChange={e => setNewRes({ ...newRes, children: Number(e.target.value) })} />
                 </div>
               </div>
 
@@ -526,13 +526,13 @@ export function Reservations() {
                 <input type="number" min="0" className="w-full mt-2 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl font-bold text-indigo-700 font-mono" value={newRes.totalAmount} onChange={e => setNewRes({ ...newRes, totalAmount: Number(e.target.value) })} />
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex gap-2 sm:gap-4">
                 {editingId && (
-                  <button type="button" onClick={handleDeleteFromForm} className="flex-1 py-4 bg-red-50 text-red-600 rounded-2xl font-bold border border-red-200 flex items-center justify-center gap-2 transition-all hover:bg-red-100">
-                    <Trash2 className="w-5 h-5" /> Eliminar
+                  <button type="button" onClick={handleDeleteFromForm} className="flex-1 py-3 sm:py-4 bg-red-50 text-red-600 rounded-2xl font-bold border border-red-200 flex items-center justify-center gap-2 transition-all hover:bg-red-100 text-sm sm:text-base">
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline">Eliminar</span>
                   </button>
                 )}
-                <button type="submit" className={`${editingId ? 'flex-1' : 'w-full'} py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700`}>
+                <button type="submit" className={`${editingId ? 'flex-1' : 'w-full'} py-3 sm:py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 text-sm sm:text-base`}>
                   {editingId ? 'Actualizar Reserva' : 'Confirmar Reserva'}
                 </button>
               </div>
