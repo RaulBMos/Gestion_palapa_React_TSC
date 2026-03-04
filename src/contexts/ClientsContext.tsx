@@ -10,6 +10,8 @@ import { logError, logInfo } from '@/utils/logger';
 import { PAGE_SIZE } from './constants/ClientsContext.constants';
 import { ClientsContext } from './ClientsContextContext';
 
+export { ClientsContext };
+
 export function ClientsProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<Client[]>([]);
   const [count, setCount] = useState<number | null>(null);
