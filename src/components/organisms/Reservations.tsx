@@ -193,6 +193,7 @@ export function Reservations() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('handleSubmit called', { newRes, isNewClient, newClientData, editingId });
 
     let clientId = newRes.clientId;
 
@@ -204,6 +205,7 @@ export function Reservations() {
           phone: newClientData.phone
         });
         clientId = createdClient.id;
+        console.log('Client created:', clientId);
       } catch (err) {
         console.error('Error creating client:', err);
         return;
@@ -211,10 +213,7 @@ export function Reservations() {
     }
 
     if (!clientId) {
-      return;
-    }
-
-    if (!newRes.startDate || !newRes.endDate || newRes.totalAmount === undefined || newRes.adults === undefined) {
+      console.log('No clientId');
       return;
     }
 
@@ -222,14 +221,16 @@ export function Reservations() {
       id: editingId || Date.now().toString(),
       clientId: clientId,
       cabinCount: newRes.cabinCount ?? 1,
-      startDate: newRes.startDate,
-      endDate: newRes.endDate,
-      adults: newRes.adults,
+      startDate: newRes.startDate || '',
+      endDate: newRes.endDate || '',
+      adults: newRes.adults ?? 1,
       children: newRes.children ?? 0,
-      totalAmount: Number(newRes.totalAmount),
+      totalAmount: Number(newRes.totalAmount) || 0,
       status: newRes.status || ReservationStatus.INFORMATION,
       isArchived: newRes.isArchived || false
     };
+
+    console.log('Saving reservation:', reservationData);
 
     if (editingId) {
       await editReservation(reservationData);
@@ -237,6 +238,7 @@ export function Reservations() {
       await addReservation(reservationData);
     }
 
+    console.log('Reservation saved successfully');
     setShowForm(false);
     setEditingId(null);
     setIsNewClient(false);
