@@ -196,8 +196,11 @@ export function Reservations() {
 
     let clientId = newRes.clientId;
 
-    // Si es cliente nuevo, primero crear el cliente
-    if (isNewClient && newClientData.name && newClientData.email && newClientData.phone) {
+    if (isNewClient) {
+      if (!newClientData.name || !newClientData.email || !newClientData.phone) {
+        alert('Por favor completa los datos del cliente');
+        return;
+      }
       try {
         const createdClient = await addClient({
           name: newClientData.name,
@@ -207,35 +210,44 @@ export function Reservations() {
         clientId = createdClient.id;
       } catch (err) {
         console.error('Error creating client:', err);
+        alert('Error al crear el cliente');
         return;
       }
     }
 
-    if (clientId && newRes.cabinCount && newRes.startDate && newRes.endDate && newRes.totalAmount !== undefined && newRes.adults !== undefined) {
-      const reservationData: Reservation = {
-        id: editingId || Date.now().toString(),
-        clientId: clientId,
-        cabinCount: newRes.cabinCount,
-        startDate: newRes.startDate,
-        endDate: newRes.endDate,
-        adults: newRes.adults,
-        children: newRes.children ?? 0,
-        totalAmount: Number(newRes.totalAmount),
-        status: newRes.status || ReservationStatus.INFORMATION,
-        isArchived: newRes.isArchived || false
-      };
-
-      if (editingId) {
-        await editReservation(reservationData);
-      } else {
-        await addReservation(reservationData);
-      }
-
-      setShowForm(false);
-      setEditingId(null);
-      setIsNewClient(false);
-      setNewClientData({ name: '', email: '', phone: '' });
+    if (!clientId) {
+      alert('Por favor selecciona un cliente');
+      return;
     }
+
+    if (!newRes.cabinCount || !newRes.startDate || !newRes.endDate || newRes.totalAmount === undefined || newRes.adults === undefined) {
+      alert('Por favor completa todos los campos requeridos');
+      return;
+    }
+
+    const reservationData: Reservation = {
+      id: editingId || Date.now().toString(),
+      clientId: clientId,
+      cabinCount: newRes.cabinCount,
+      startDate: newRes.startDate,
+      endDate: newRes.endDate,
+      adults: newRes.adults,
+      children: newRes.children ?? 0,
+      totalAmount: Number(newRes.totalAmount),
+      status: newRes.status || ReservationStatus.INFORMATION,
+      isArchived: newRes.isArchived || false
+    };
+
+    if (editingId) {
+      await editReservation(reservationData);
+    } else {
+      await addReservation(reservationData);
+    }
+
+    setShowForm(false);
+    setEditingId(null);
+    setIsNewClient(false);
+    setNewClientData({ name: '', email: '', phone: '' });
   };
 
   const changeMonth = (setter: React.Dispatch<React.SetStateAction<Date>>, current: Date, increment: number) => {
