@@ -58,9 +58,10 @@ export function Reservations() {
   const [pickerMonth, setPickerMonth] = useState(new Date());
   const [newRes, setNewRes] = useState<Partial<Reservation>>({
     status: ReservationStatus.INFORMATION,
-    adults: 2,
-    children: 0,
-    cabinCount: 1
+    adults: undefined,
+    children: undefined,
+    cabinCount: undefined,
+    totalAmount: undefined
   });
 
   // Helpers
@@ -138,10 +139,10 @@ export function Reservations() {
     const todayStr = getDateString(today);
     setNewRes({
       status: ReservationStatus.INFORMATION,
-      adults: 2,
-      children: 0,
-      cabinCount: 1,
-      totalAmount: 0,
+      adults: undefined,
+      children: undefined,
+      cabinCount: undefined,
+      totalAmount: undefined,
       startDate: todayStr,
       endDate: ''
     });
@@ -192,7 +193,6 @@ export function Reservations() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAdmin) return;
 
     let clientId = newRes.clientId;
 
@@ -211,15 +211,15 @@ export function Reservations() {
       }
     }
 
-    if (clientId && newRes.cabinCount && newRes.startDate && newRes.endDate && newRes.totalAmount !== undefined) {
+    if (clientId && newRes.cabinCount && newRes.startDate && newRes.endDate && newRes.totalAmount !== undefined && newRes.adults !== undefined) {
       const reservationData: Reservation = {
         id: editingId || Date.now().toString(),
         clientId: clientId,
         cabinCount: newRes.cabinCount,
         startDate: newRes.startDate,
         endDate: newRes.endDate,
-        adults: newRes.adults || 1,
-        children: newRes.children || 0,
+        adults: newRes.adults,
+        children: newRes.children ?? 0,
         totalAmount: Number(newRes.totalAmount),
         status: newRes.status || ReservationStatus.INFORMATION,
         isArchived: newRes.isArchived || false
@@ -420,7 +420,7 @@ export function Reservations() {
                     disabled={!!editingId}
                   >
                     <option value="">Seleccionar Cliente</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {clients?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     <option value="NEW">+ Nuevo Cliente</option>
                   </select>
                 </div>
@@ -509,21 +509,21 @@ export function Reservations() {
               <div className="grid grid-cols-3 gap-2 sm:gap-4">
                 <div>
                   <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Cabañas</label>
-                  <input type="number" min="1" max={totalAvailableCabins} className="w-full mt-2 p-2 sm:p-4 bg-gray-50 dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-2xl font-bold text-sm sm:text-base text-gray-900 dark:text-white" value={newRes.cabinCount} onChange={e => setNewRes({ ...newRes, cabinCount: Number(e.target.value) })} />
+                  <input type="number" min="1" max={totalAvailableCabins} placeholder="0" className="w-full mt-2 p-2 sm:p-4 bg-gray-50 dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-2xl font-bold text-sm sm:text-base text-gray-900 dark:text-white" value={newRes.cabinCount ?? ''} onChange={e => setNewRes({ ...newRes, cabinCount: e.target.value ? Number(e.target.value) : undefined })} />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Adultos</label>
-                  <input type="number" min="1" className="w-full mt-2 p-2 sm:p-4 bg-gray-50 dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-2xl font-bold text-sm sm:text-base text-gray-900 dark:text-white" value={newRes.adults} onChange={e => setNewRes({ ...newRes, adults: Number(e.target.value) })} />
+                  <input type="number" min="1" placeholder="0" className="w-full mt-2 p-2 sm:p-4 bg-gray-50 dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-2xl font-bold text-sm sm:text-base text-gray-900 dark:text-white" value={newRes.adults ?? ''} onChange={e => setNewRes({ ...newRes, adults: e.target.value ? Number(e.target.value) : undefined })} />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Niños</label>
-                  <input type="number" min="0" className="w-full mt-2 p-2 sm:p-4 bg-gray-50 dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-2xl font-bold text-sm sm:text-base text-gray-900 dark:text-white" value={newRes.children} onChange={e => setNewRes({ ...newRes, children: Number(e.target.value) })} />
+                  <input type="number" min="0" placeholder="0" className="w-full mt-2 p-2 sm:p-4 bg-gray-50 dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-2xl font-bold text-sm sm:text-base text-gray-900 dark:text-white" value={newRes.children ?? ''} onChange={e => setNewRes({ ...newRes, children: e.target.value ? Number(e.target.value) : undefined })} />
                 </div>
               </div>
 
               <div>
                 <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Total ($)</label>
-                <input type="number" min="0" className="w-full mt-2 p-4 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 rounded-2xl font-bold text-indigo-700 dark:text-indigo-400 font-mono" value={newRes.totalAmount} onChange={e => setNewRes({ ...newRes, totalAmount: Number(e.target.value) })} />
+                <input type="number" min="0" placeholder="0" className="w-full mt-2 p-4 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 rounded-2xl font-bold text-indigo-700 dark:text-indigo-400 font-mono" value={newRes.totalAmount ?? ''} onChange={e => setNewRes({ ...newRes, totalAmount: e.target.value ? Number(e.target.value) : undefined })} />
               </div>
 
               <div className="flex gap-2 sm:gap-4">

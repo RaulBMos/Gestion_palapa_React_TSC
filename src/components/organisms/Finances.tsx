@@ -10,10 +10,39 @@ import {
   Trash2,
   X,
   Calendar,
-  Tag
+  Tag,
+  Settings,
+  Check
 } from 'lucide-react';
 import { useFinancials } from '@/hooks/useFinancials';
 import { useAuth } from '@/contexts/useAuth';
+
+const DEFAULT_EXPENSE_CATEGORIES = ['Mantenimiento', 'Servicios (Luz/Agua)', 'Impuestos', 'Limpieza'];
+const DEFAULT_INCOME_CATEGORIES = ['Renta', 'Servicios Extra'];
+
+interface Category {
+  id: string;
+  name: string;
+  type: TransactionType;
+}
+
+const STORAGE_KEY = 'cg_categories';
+
+function loadCategories(): Category[] {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored) {
+    return JSON.parse(stored);
+  }
+  const categories: Category[] = [
+    ...DEFAULT_INCOME_CATEGORIES.map((name, i) => ({ id: `income_${i}`, name, type: TransactionType.INCOME })),
+    ...DEFAULT_EXPENSE_CATEGORIES.map((name, i) => ({ id: `expense_${i}`, name, type: TransactionType.EXPENSE }))
+  ];
+  return categories;
+}
+
+function saveCategories(categories: Category[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(categories));
+}
 
 export function Finances() {
   const {
@@ -27,6 +56,10 @@ export function Finances() {
   const [activeTab, setActiveTab] = useState<TransactionType>(TransactionType.INCOME);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>(loadCategories);
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Partial<Transaction>>({
     type: TransactionType.INCOME,
@@ -81,6 +114,47 @@ export function Finances() {
     }
   };
 
+  const getCategoriesForType = (type: TransactionType) => 
+    categories.filter(c => c.type === type);
+
+  const handleAddCategory = () => {
+    if (!newCategoryName.trim() || !isAdmin) return;
+    const newCat: Category = {
+      id: `cat_${Date.now()}`,
+      name: newCategoryName.trim(),
+      type: activeTab
+    };
+    const updated = [...categories, newCat];
+    setCategories(updated);
+    saveCategories(updated);
+    setNewCategoryName('');
+  };
+
+  const handleUpdateCategory = () => {
+    if (!newCategoryName.trim() || !editingCategoryId || !isAdmin) return;
+    const updated = categories.map(c => 
+      c.id === editingCategoryId ? { ...c, name: newCategoryName.trim() } : c
+    );
+    setCategories(updated);
+    saveCategories(updated);
+    setNewCategoryName('');
+    setEditingCategoryId(null);
+  };
+
+  const handleDeleteCategory = (id: string) => {
+    if (!isAdmin) return;
+    if (window.confirm('¿Eliminar esta categoría? Las transacciones existentes mantendrán la categoría.')) {
+      const updated = categories.filter(c => c.id !== id);
+      setCategories(updated);
+      saveCategories(updated);
+    }
+  };
+
+  const startEditCategory = (cat: Category) => {
+    setEditingCategoryId(cat.id);
+    setNewCategoryName(cat.name);
+  };
+
   const filteredTransactions = transactions
     .filter(t => t.type === activeTab)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -93,23 +167,31 @@ export function Finances() {
           <p className="text-gray-500 text-sm">Control de ingresos y egresos operativos.</p>
         </div>
         {isAdmin && (
-          <button
-            onClick={() => {
-              setEditingId(null);
-              setFormData({
-                type: activeTab,
-                paymentMethod: PaymentMethod.CASH,
-                date: new Date().toISOString().split('T')[0] || ''
-              });
-              setShowForm(true);
-            }}
-            className={`w-full sm:w-auto px-6 py-3 rounded-2xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${activeTab === TransactionType.INCOME
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setShowCategoriesModal(true)}
+              className="px-4 py-3 rounded-2xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+            >
+              <Settings className="w-5 h-5" /> Categorías
+            </button>
+            <button
+              onClick={() => {
+                setEditingId(null);
+                setFormData({
+                  type: activeTab,
+                  paymentMethod: PaymentMethod.CASH,
+                  date: new Date().toISOString().split('T')[0] || ''
+                });
+                setShowForm(true);
+              }}
+              className={`flex-1 sm:flex-none px-6 py-3 rounded-2xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${activeTab === TransactionType.INCOME
                 ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'
                 : 'bg-red-600 hover:bg-red-700 shadow-red-100'
               }`}
-          >
+            >
             <Plus className="w-5 h-5" /> Registrar {activeTab === TransactionType.INCOME ? 'Ingreso' : 'Gasto'}
-          </button>
+            </button>
+          </div>
         )}
       </div>
 
@@ -232,19 +314,9 @@ export function Finances() {
                     required
                   >
                     <option value="">Seleccionar</option>
-                    {activeTab === TransactionType.INCOME ? (
-                      <>
-                        <option value="Renta">Renta</option>
-                        <option value="Servicios Extra">Servicios Extra</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="Mantenimiento">Mantenimiento</option>
-                        <option value="Servicios">Servicios (Luz/Agua)</option>
-                        <option value="Impuestos">Impuestos</option>
-                        <option value="Limpieza">Limpieza</option>
-                      </>
-                    )}
+                    {getCategoriesForType(activeTab).map(cat => (
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-1">
@@ -270,6 +342,88 @@ export function Finances() {
                 {editingId ? 'Guardar Cambios' : 'Registrar Transacción'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Gestión de Categorías */}
+      {showCategoriesModal && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold text-gray-900">Gestionar Categorías</h3>
+              <button onClick={() => { setShowCategoriesModal(false); setEditingCategoryId(null); setNewCategoryName(''); }} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <X className="w-6 h-6 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Nueva categoría..."
+                  className="flex-1 p-3 bg-gray-50 border border-gray-100 rounded-xl font-medium outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                  value={newCategoryName}
+                  onChange={e => setNewCategoryName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && (editingCategoryId ? handleUpdateCategory() : handleAddCategory())}
+                />
+                <button
+                  onClick={editingCategoryId ? handleUpdateCategory : handleAddCategory}
+                  disabled={!newCategoryName.trim()}
+                  className="px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {editingCategoryId ? <Check className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                </button>
+              </div>
+
+              {editingCategoryId && (
+                <button
+                  onClick={() => { setEditingCategoryId(null); setNewCategoryName(''); }}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Cancelar edición
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Ingresos</h4>
+              {getCategoriesForType(TransactionType.INCOME).map(cat => (
+                <div key={cat.id} className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl">
+                  <span className="font-medium text-emerald-800">{cat.name}</span>
+                  <div className="flex gap-1">
+                    <button onClick={() => startEditCategory(cat)} className="p-2 hover:bg-emerald-100 rounded-lg text-emerald-600">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDeleteCategory(cat.id)} className="p-2 hover:bg-emerald-100 rounded-lg text-emerald-600 hover:text-red-600">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-4">Gastos</h4>
+              {getCategoriesForType(TransactionType.EXPENSE).map(cat => (
+                <div key={cat.id} className="flex items-center justify-between p-3 bg-red-50 rounded-xl">
+                  <span className="font-medium text-red-800">{cat.name}</span>
+                  <div className="flex gap-1">
+                    <button onClick={() => startEditCategory(cat)} className="p-2 hover:bg-red-100 rounded-lg text-red-600">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDeleteCategory(cat.id)} className="p-2 hover:bg-red-100 rounded-lg text-red-600 hover:text-red-800">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => { setShowCategoriesModal(false); setEditingCategoryId(null); setNewCategoryName(''); }}
+              className="w-full mt-6 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all"
+            >
+              Cerrar
+            </button>
           </div>
         </div>
       )}
