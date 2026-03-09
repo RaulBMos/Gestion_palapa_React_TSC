@@ -220,7 +220,7 @@ export function Reservations() {
       return;
     }
 
-    if (!newRes.cabinCount || !newRes.startDate || !newRes.endDate || newRes.totalAmount === undefined || newRes.adults === undefined) {
+    if (!newRes.startDate || !newRes.endDate || newRes.totalAmount === undefined || newRes.adults === undefined) {
       alert('Por favor completa todos los campos requeridos');
       return;
     }
@@ -228,7 +228,7 @@ export function Reservations() {
     const reservationData: Reservation = {
       id: editingId || Date.now().toString(),
       clientId: clientId,
-      cabinCount: newRes.cabinCount,
+      cabinCount: newRes.cabinCount ?? 1,
       startDate: newRes.startDate,
       endDate: newRes.endDate,
       adults: newRes.adults,
@@ -521,7 +521,7 @@ export function Reservations() {
               <div className="grid grid-cols-3 gap-2 sm:gap-4">
                 <div>
                   <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Cabañas</label>
-                  <input type="number" min="1" max={totalAvailableCabins} placeholder="0" className="w-full mt-2 p-2 sm:p-4 bg-gray-50 dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-2xl font-bold text-sm sm:text-base text-gray-900 dark:text-white" value={newRes.cabinCount ?? ''} onChange={e => setNewRes({ ...newRes, cabinCount: e.target.value ? Number(e.target.value) : undefined })} />
+                  <input type="number" min="0" max={totalAvailableCabins} placeholder="0" className="w-full mt-2 p-2 sm:p-4 bg-gray-50 dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-2xl font-bold text-sm sm:text-base text-gray-900 dark:text-white" value={newRes.cabinCount ?? ''} onChange={e => setNewRes({ ...newRes, cabinCount: e.target.value ? Number(e.target.value) : undefined })} />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Adultos</label>
