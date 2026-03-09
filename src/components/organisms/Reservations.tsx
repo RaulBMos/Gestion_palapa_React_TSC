@@ -195,7 +195,7 @@ export function Reservations() {
     e.preventDefault();
     console.log('handleSubmit called', { newRes, isNewClient, newClientData, editingId });
 
-    let clientId = newRes.clientId;
+    let clientId = newRes.clientId || 'temp_client';
 
     if (isNewClient && newClientData.name && newClientData.email && newClientData.phone) {
       try {
@@ -208,21 +208,15 @@ export function Reservations() {
         console.log('Client created:', clientId);
       } catch (err) {
         console.error('Error creating client:', err);
-        return;
       }
     }
 
-    if (!clientId) {
-      console.log('No clientId');
-      return;
-    }
-
     const reservationData: Reservation = {
-      id: editingId || Date.now().toString(),
+      id: editingId || `reservation_${Date.now()}`,
       clientId: clientId,
       cabinCount: newRes.cabinCount ?? 1,
-      startDate: newRes.startDate || '',
-      endDate: newRes.endDate || '',
+      startDate: newRes.startDate || getDateString(new Date()),
+      endDate: newRes.endDate || getDateString(new Date()),
       adults: newRes.adults ?? 1,
       children: newRes.children ?? 0,
       totalAmount: Number(newRes.totalAmount) || 0,
@@ -232,13 +226,17 @@ export function Reservations() {
 
     console.log('Saving reservation:', reservationData);
 
-    if (editingId) {
-      await editReservation(reservationData);
-    } else {
-      await addReservation(reservationData);
+    try {
+      if (editingId) {
+        await editReservation(reservationData);
+      } else {
+        await addReservation(reservationData);
+      }
+      console.log('Reservation saved successfully');
+    } catch (err) {
+      console.error('Error saving reservation:', err);
     }
 
-    console.log('Reservation saved successfully');
     setShowForm(false);
     setEditingId(null);
     setIsNewClient(false);
