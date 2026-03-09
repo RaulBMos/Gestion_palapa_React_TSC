@@ -196,11 +196,7 @@ export function Reservations() {
 
     let clientId = newRes.clientId;
 
-    if (isNewClient) {
-      if (!newClientData.name || !newClientData.email || !newClientData.phone) {
-        alert('Por favor completa los datos del cliente');
-        return;
-      }
+    if (isNewClient && newClientData.name && newClientData.email && newClientData.phone) {
       try {
         const createdClient = await addClient({
           name: newClientData.name,
@@ -210,18 +206,15 @@ export function Reservations() {
         clientId = createdClient.id;
       } catch (err) {
         console.error('Error creating client:', err);
-        alert('Error al crear el cliente');
         return;
       }
     }
 
     if (!clientId) {
-      alert('Por favor selecciona un cliente');
       return;
     }
 
     if (!newRes.startDate || !newRes.endDate || newRes.totalAmount === undefined || newRes.adults === undefined) {
-      alert('Por favor completa todos los campos requeridos');
       return;
     }
 
