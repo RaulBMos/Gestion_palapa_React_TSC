@@ -191,8 +191,8 @@ export function Reservations() {
     setNewRes(updatedRes);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
     console.log('handleSubmit called', { newRes, isNewClient, newClientData, editingId });
 
     let clientId = newRes.clientId || 'temp_client';
@@ -413,7 +413,7 @@ export function Reservations() {
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{editingId ? 'Actualizar Reserva' : 'Nueva Reserva'}</h3>
               <button onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full"><X className="w-6 h-6 text-gray-400" /></button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form className="space-y-6">
               {/* Selector de cliente */}
               <div>
                 <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Cliente</label>
@@ -537,7 +537,7 @@ export function Reservations() {
                     <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline">Eliminar</span>
                   </button>
                 )}
-                <button type="submit" className={`${editingId ? 'flex-1' : 'w-full'} py-3 sm:py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 text-sm sm:text-base`}>
+                <button type="button" onClick={handleSubmit} className={`${editingId ? 'flex-1' : 'w-full'} py-3 sm:py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 text-sm sm:text-base`}>
                   {editingId ? 'Actualizar Reserva' : 'Confirmar Reserva'}
                 </button>
               </div>
