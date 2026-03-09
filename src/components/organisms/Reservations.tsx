@@ -282,17 +282,17 @@ export function Reservations() {
           const isEnd = mode === 'picker' && newRes.endDate === dateStr;
           const isInRange = mode === 'picker' && newRes.startDate && newRes.endDate && dateStr > newRes.startDate && dateStr < newRes.endDate;
 
-          let bgColor = 'bg-emerald-50 hover:bg-emerald-100';
+          let bgColor = 'bg-emerald-200 hover:bg-emerald-300 dark:bg-emerald-600 dark:hover:bg-emerald-500';
           if (availableCount === 0) {
-            bgColor = 'bg-red-50 hover:bg-red-100';
+            bgColor = 'bg-red-200 hover:bg-red-300 dark:bg-red-600 dark:hover:bg-red-500';
           } else if (availableCount < totalAvailableCabins) {
-            bgColor = 'bg-orange-50 hover:bg-orange-100';
+            bgColor = 'bg-orange-200 hover:bg-orange-300 dark:bg-orange-500 dark:hover:bg-orange-400';
           }
 
           if (isSelected || isStart || isEnd) {
-            bgColor = 'bg-indigo-600 text-white';
+            bgColor = 'bg-indigo-600 text-white dark:bg-indigo-500';
           } else if (isInRange) {
-            bgColor = 'bg-indigo-100 text-indigo-900 font-bold';
+            bgColor = 'bg-indigo-200 text-indigo-900 font-bold dark:bg-indigo-700 dark:text-indigo-100';
           }
 
           return (
