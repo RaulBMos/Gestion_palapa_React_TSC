@@ -185,7 +185,7 @@ export function Reservations() {
     if (!updatedRes.startDate || (updatedRes.startDate && updatedRes.endDate) || dateStr < updatedRes.startDate) {
       updatedRes.startDate = dateStr;
       updatedRes.endDate = '';
-    } else if (updatedRes.startDate && dateStr > updatedRes.startDate) {
+    } else if (updatedRes.startDate && dateStr >= updatedRes.startDate) {
       updatedRes.endDate = dateStr;
     }
     setNewRes(updatedRes);
