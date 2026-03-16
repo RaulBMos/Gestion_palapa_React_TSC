@@ -165,6 +165,31 @@ export const calculateRevPAR = (occupancyRate: number, adr: number): number => {
   return (occupancyRate / 100) * adr;
 };
 
+export const calculateReservationTotalHours = (
+  startDate: string | undefined,
+  startTime: string,
+  endDate: string | undefined,
+  endTime: string
+): number => {
+  if (!startDate || !endDate) return 0;
+
+  const [sy, sm, sd] = startDate.split('-').map(Number);
+  const [ey, em, ed] = endDate.split('-').map(Number);
+  const [sh, smin] = startTime.split(':').map(Number);
+  const [eh, emin] = endTime.split(':').map(Number);
+
+  if (![sy, sm, sd, ey, em, ed, sh, smin, eh, emin].every(Number.isFinite)) {
+    return 0;
+  }
+
+  const start = new Date(sy, sm - 1, sd, sh, smin, 0, 0);
+  const end = new Date(ey, em - 1, ed, eh, emin, 0, 0);
+  const diffMs = end.getTime() - start.getTime();
+  if (diffMs < 0) return 0;
+
+  return Number((diffMs / (1000 * 60 * 60)).toFixed(2));
+};
+
 /**
  * Obtiene todas las métricas KPI calculadas
  * 

@@ -10,7 +10,8 @@ import {
   calculateADR,
   calculateAverageStayDuration,
   calculateRevPAR,
-  calculateAllMetrics
+  calculateAllMetrics,
+  calculateReservationTotalHours
 } from '@/utils/calculations';
 import { Transaction, TransactionType, Reservation, ReservationStatus, PaymentMethod } from '@/types';
 
@@ -552,6 +553,28 @@ describe('Financial Calculation Utils', () => {
     it('should handle decimal values', () => {
       const result = calculateRevPAR(67.5, 125.67);
       expect(result).toBeCloseTo(84.83, 2); // 0.675 * 125.67 = 84.83
+    });
+  });
+
+  describe('calculateReservationTotalHours', () => {
+    it('should calculate 24 hours across two days with same time', () => {
+      const result = calculateReservationTotalHours('2026-03-07', '10:00', '2026-03-08', '10:00');
+      expect(result).toBe(24);
+    });
+
+    it('should calculate 12 hours for same-day range', () => {
+      const result = calculateReservationTotalHours('2026-03-09', '09:00', '2026-03-09', '21:00');
+      expect(result).toBe(12);
+    });
+
+    it('should return 0 for invalid date range (end before start)', () => {
+      const result = calculateReservationTotalHours('2026-03-09', '21:00', '2026-03-09', '09:00');
+      expect(result).toBe(0);
+    });
+
+    it('should return 0 if start or end date is missing', () => {
+      expect(calculateReservationTotalHours(undefined, '09:00', '2026-03-09', '21:00')).toBe(0);
+      expect(calculateReservationTotalHours('2026-03-09', '09:00', undefined, '21:00')).toBe(0);
     });
   });
 

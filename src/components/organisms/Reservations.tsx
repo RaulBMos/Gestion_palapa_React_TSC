@@ -16,6 +16,7 @@ import {
 import { useReservations } from '@/hooks/useReservations';
 import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/contexts/useAuth';
+import { calculateReservationTotalHours } from '@/utils/calculations';
 
 interface NewClientData {
   name: string;
@@ -104,24 +105,6 @@ export function Reservations() {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
-  const calculateTotalHours = (startDate: string | undefined, startTime: string, endDate: string | undefined, endTime: string) => {
-    if (!startDate || !endDate) return 0;
-
-    const [sy, sm, sd] = startDate.split('-').map(Number);
-    const [eh, em] = endDate.split('-').map(Number);
-    const [sh, smin] = startTime.split(':').map(Number);
-    const [ehh, eem] = endTime.split(':').map(Number);
-
-    if (![sy, sm, sd, eh, em, ehh, eem, sh, smin].every(n => Number.isFinite(n))) return 0;
-
-    const start = new Date(sy, sm - 1, sd, sh, smin, 0, 0);
-    const end = new Date(eh, em - 1, ehh, eem, 0, 0);
-    const diffMs = end.getTime() - start.getTime();
-    if (diffMs < 0) return 0;
-
-    return Number((diffMs / (1000 * 60 * 60)).toFixed(2));
-  };
-
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -157,7 +140,7 @@ export function Reservations() {
       ...res,
       startTime: res.startTime || '08:00',
       endTime: res.endTime || '17:00',
-      totalHours: res.totalHours ?? calculateTotalHours(res.startTime || '08:00', res.endTime || '17:00'),
+      totalHours: res.totalHours ?? calculateReservationTotalHours(res.startDate, res.startTime || '08:00', res.endDate, res.endTime || '17:00'),
     });
     setEditingId(res.id);
     setIsNewClient(false);
@@ -223,14 +206,24 @@ export function Reservations() {
   const handleDateClick = (dateStr: string, e?: React.MouseEvent) => {
     if (e) e.preventDefault();
     if (!isAdmin) return;
+
     let updatedRes = { ...newRes };
+
     if (!updatedRes.startDate || (updatedRes.startDate && updatedRes.endDate) || dateStr < updatedRes.startDate) {
       updatedRes.startDate = dateStr;
       updatedRes.endDate = '';
     } else if (updatedRes.startDate && dateStr >= updatedRes.startDate) {
       updatedRes.endDate = dateStr;
     }
-    setNewRes(updatedRes);
+
+    const totalHours = calculateReservationTotalHours(
+      updatedRes.startDate,
+      updatedRes.startTime || '08:00',
+      updatedRes.endDate,
+      updatedRes.endTime || '17:00'
+    );
+
+    setNewRes({ ...updatedRes, totalHours });
   };
 
   const validateForm = () => {
@@ -252,7 +245,7 @@ export function Reservations() {
       return 'La fecha de salida debe ser igual o mayor a la fecha de entrada.';
     }
 
-    const totalHours = calculateTotalHours(newRes.startDate, newRes.startTime, newRes.endDate, newRes.endTime);
+    const totalHours = calculateReservationTotalHours(newRes.startDate, newRes.startTime, newRes.endDate, newRes.endTime);
     if (totalHours <= 0) {
       return 'El total de horas ocupadas debe ser mayor a cero con la fecha y hora combinadas.';
     }
@@ -331,7 +324,7 @@ export function Reservations() {
     const children = Number(newRes.children ?? 0);
     const totalAmount = Number(newRes.totalAmount ?? 0);
 
-    const calculatedTotalHours = calculateTotalHours(newRes.startDate, newRes.startTime || '08:00', newRes.endDate, newRes.endTime || '17:00');
+    const calculatedTotalHours = calculateReservationTotalHours(newRes.startDate, newRes.startTime || '08:00', newRes.endDate, newRes.endTime || '17:00');
 
     const reservationPayload = {
       clientId,
@@ -672,7 +665,7 @@ export function Reservations() {
                   <input type="time" step="1800" className="w-full mt-2 p-2 sm:p-4 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-600 rounded-2xl font-bold text-sm sm:text-base text-gray-900 dark:text-white" value={newRes.startTime || '08:00'} onChange={e => {
                     const startTime = e.target.value;
                     const endTime = newRes.endTime || '17:00';
-                    const totalHours = calculateTotalHours(startTime, endTime);
+                    const totalHours = calculateReservationTotalHours(newRes.startDate, startTime, newRes.endDate, endTime);
                     setNewRes({ ...newRes, startTime, totalHours });
                   }} />
                 </div>
@@ -681,7 +674,7 @@ export function Reservations() {
                   <input type="time" step="1800" className="w-full mt-2 p-2 sm:p-4 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-600 rounded-2xl font-bold text-sm sm:text-base text-gray-900 dark:text-white" value={newRes.endTime || '17:00'} onChange={e => {
                     const endTime = e.target.value;
                     const startTime = newRes.startTime || '08:00';
-                    const totalHours = calculateTotalHours(startTime, endTime);
+                    const totalHours = calculateReservationTotalHours(newRes.startDate, startTime, newRes.endDate, endTime);
                     setNewRes({ ...newRes, endTime, totalHours });
                   }} />
                 </div>

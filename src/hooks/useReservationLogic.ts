@@ -9,6 +9,7 @@ import {
   ReservationFormState,
   ReservationCalendarHelpers
 } from '@/types';
+import { calculateReservationTotalHours } from '@/utils/calculations';
 
 type CalendarState = BaseCalendarState;
 type FormState = ReservationFormState;
@@ -129,24 +130,6 @@ export const useReservationLogic = (
     return clientList.find(c => c.id === id)?.name || 'Cliente desconocido';
   }, [clients]);
 
-  const calculateTotalHours = useCallback((startDate: string | undefined, startTime: string, endDate: string | undefined, endTime: string) => {
-    if (!startDate || !endDate) return 0;
-
-    const [sy, sm, sd] = startDate.split('-').map(Number);
-    const [ey, em, ed] = endDate.split('-').map(Number);
-    const [sh, smin] = startTime.split(':').map(Number);
-    const [eh, emin] = endTime.split(':').map(Number);
-
-    if (![sy, sm, sd, ey, em, ed, sh, smin, eh, emin].every(n => Number.isFinite(n))) return 0;
-
-    const start = new Date(sy, sm - 1, sd, sh, smin, 0, 0);
-    const end = new Date(ey, em - 1, ed, eh, emin, 0, 0);
-    const diffMs = end.getTime() - start.getTime();
-    if (diffMs < 0) return 0;
-
-    return Number((diffMs / (1000 * 60 * 60)).toFixed(2));
-  }, []);
-
   const statusColor = useCallback((status: ReservationStatus) => {
     switch (status) {
       case ReservationStatus.CONFIRMED: return 'bg-emerald-100 text-emerald-700 border-emerald-200';
@@ -215,14 +198,21 @@ export const useReservationLogic = (
       updatedRes.endDate = '';
     }
 
-    setNewRes(updatedRes);
+    const totalHours = calculateReservationTotalHours(
+      updatedRes.startDate,
+      updatedRes.startTime || '08:00',
+      updatedRes.endDate,
+      updatedRes.endTime || '17:00'
+    );
+
+    setNewRes({ ...updatedRes, totalHours });
   }, [newRes]);
 
   const handleSubmit = useCallback((e: FormEvent) => {
     e.preventDefault();
     if (newRes.clientId && newRes.cabinCount && newRes.startDate && newRes.endDate && newRes.totalAmount !== undefined) {
       const totalHours = newRes.startDate && newRes.endDate ?
-        calculateTotalHours(newRes.startDate, newRes.startTime || '08:00', newRes.endDate, newRes.endTime || '17:00') : 0;
+        calculateReservationTotalHours(newRes.startDate, newRes.startTime || '08:00', newRes.endDate, newRes.endTime || '17:00') : 0;
 
       const reservationData: Reservation = {
         id: editingId || Date.now().toString(),
@@ -250,7 +240,7 @@ export const useReservationLogic = (
       setEditingId(null);
       setNewRes({ status: ReservationStatus.INFORMATION, adults: 2, children: 0, cabinCount: 1 });
     }
-  }, [newRes, editingId, onAdd, onEdit, calculateTotalHours]);
+  }, [newRes, editingId, onAdd, onEdit]);
 
   // --- Computed Values ---
   const filteredReservations = useMemo(() => {
