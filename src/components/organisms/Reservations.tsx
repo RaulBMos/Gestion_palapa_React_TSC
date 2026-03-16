@@ -204,8 +204,8 @@ export function Reservations() {
       return 'Las fechas tienen un formato inválido.';
     }
 
-    if (end <= start) {
-      return 'La fecha de salida debe ser mayor a la fecha de entrada.';
+    if (end < start) {
+      return 'La fecha de salida debe ser igual o mayor a la fecha de entrada.';
     }
 
     if (!Number.isFinite(Number(newRes.cabinCount)) || (newRes.cabinCount ?? 0) < 1) {

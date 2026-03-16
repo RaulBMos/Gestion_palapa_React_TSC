@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   client_id UUID NOT NULL REFERENCES clients(id) ON DELETE RESTRICT,
   cabin_count INTEGER NOT NULL CHECK (cabin_count > 0 AND cabin_count <= 20),
   start_date DATE NOT NULL,
-  end_date DATE NOT NULL CHECK (end_date > start_date),
+  end_date DATE NOT NULL CHECK (end_date >= start_date),
   adults INTEGER NOT NULL DEFAULT 1 CHECK (adults >= 0),
   children INTEGER NOT NULL DEFAULT 0 CHECK (children >= 0),
   total_amount NUMERIC(10, 2) NOT NULL CHECK (total_amount >= 0),
