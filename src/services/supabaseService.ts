@@ -94,6 +94,26 @@ function mapDbReservationToReservation(dbReservation: DbReservation): Reservatio
     };
 }
 
+function validateReservationDatesAndTimes(reservation: Omit<Reservation, 'id'>): void {
+    const startTime = reservation.startTime || '08:00';
+    const endTime = reservation.endTime || '17:00';
+
+    const start = new Date(`${reservation.startDate}T${startTime}`);
+    const end = new Date(`${reservation.endDate}T${endTime}`);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        throw new SupabaseError('Las fechas/hora de la reserva tienen formato inválido', 'VALIDATION_ERROR');
+    }
+
+    if (end < start) {
+        throw new SupabaseError('La fecha/hora de salida debe ser mayor o igual a la de entrada', 'VALIDATION_ERROR');
+    }
+
+    if (reservation.startDate === reservation.endDate && end.getTime() <= start.getTime()) {
+        throw new SupabaseError('En la misma fecha, la hora de salida debe ser mayor que la hora de entrada', 'VALIDATION_ERROR');
+    }
+}
+
 /**
  * Maps database transaction to application transaction type
  */
@@ -324,6 +344,8 @@ export async function createReservation(reservation: Omit<Reservation, 'id'>): P
         const supabase = getSupabaseClient();
         const userId = await getUserId();
 
+        validateReservationDatesAndTimes(reservation);
+
         const insertData: InsertReservation = {
             client_id: reservation.clientId,
             cabin_count: reservation.cabinCount,
@@ -372,6 +394,8 @@ export async function createReservation(reservation: Omit<Reservation, 'id'>): P
 export async function updateReservation(reservation: Reservation): Promise<Reservation> {
     const result = await withRetry(async () => {
         const supabase = getSupabaseClient();
+
+        validateReservationDatesAndTimes(reservation);
 
         const updateData: UpdateReservation = {
             client_id: reservation.clientId,

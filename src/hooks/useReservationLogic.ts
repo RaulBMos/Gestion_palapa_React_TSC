@@ -9,7 +9,7 @@ import {
   ReservationFormState,
   ReservationCalendarHelpers
 } from '@/types';
-import { calculateReservationTotalHours } from '@/utils/calculations';
+import { calculateReservationTotalHours, isReservationTimeRangeValid } from '@/utils/calculations';
 
 type CalendarState = BaseCalendarState;
 type FormState = ReservationFormState;
@@ -211,8 +211,16 @@ export const useReservationLogic = (
   const handleSubmit = useCallback((e: FormEvent) => {
     e.preventDefault();
     if (newRes.clientId && newRes.cabinCount && newRes.startDate && newRes.endDate && newRes.totalAmount !== undefined) {
+      if (!isReservationTimeRangeValid(newRes.startDate, newRes.startTime || '08:00', newRes.endDate, newRes.endTime || '17:00')) {
+        return;
+      }
+
       const totalHours = newRes.startDate && newRes.endDate ?
         calculateReservationTotalHours(newRes.startDate, newRes.startTime || '08:00', newRes.endDate, newRes.endTime || '17:00') : 0;
+
+      if (totalHours <= 0) {
+        return;
+      }
 
       const reservationData: Reservation = {
         id: editingId || Date.now().toString(),

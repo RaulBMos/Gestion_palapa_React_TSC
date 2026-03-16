@@ -190,6 +190,37 @@ export const calculateReservationTotalHours = (
   return Number((diffMs / (1000 * 60 * 60)).toFixed(2));
 };
 
+export const isReservationTimeRangeValid = (
+  startDate: string | undefined,
+  startTime: string | undefined,
+  endDate: string | undefined,
+  endTime: string | undefined
+): boolean => {
+  if (!startDate || !endDate || !startTime || !endTime) return false;
+
+  const [sy, sm, sd] = startDate.split('-').map(Number);
+  const [ey, em, ed] = endDate.split('-').map(Number);
+  const [sh, smin] = startTime.split(':').map(Number);
+  const [eh, emin] = endTime.split(':').map(Number);
+
+  if (![sy, sm, sd, ey, em, ed, sh, smin, eh, emin].every(Number.isFinite)) {
+    return false;
+  }
+
+  const start = new Date(sy, sm - 1, sd, sh, smin, 0, 0);
+  const end = new Date(ey, em - 1, ed, eh, emin, 0, 0);
+
+  if (end < start) {
+    return false;
+  }
+
+  if (startDate === endDate && end.getTime() <= start.getTime()) {
+    return false;
+  }
+
+  return true;
+};
+
 /**
  * Obtiene todas las métricas KPI calculadas
  * 

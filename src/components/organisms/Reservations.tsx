@@ -16,7 +16,7 @@ import {
 import { useReservations } from '@/hooks/useReservations';
 import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/contexts/useAuth';
-import { calculateReservationTotalHours } from '@/utils/calculations';
+import { calculateReservationTotalHours, isReservationTimeRangeValid } from '@/utils/calculations';
 
 interface NewClientData {
   name: string;
@@ -245,6 +245,10 @@ export function Reservations() {
       return 'La fecha de salida debe ser igual o mayor a la fecha de entrada.';
     }
 
+    if (!isReservationTimeRangeValid(newRes.startDate, newRes.startTime, newRes.endDate, newRes.endTime)) {
+      return 'El rango de fecha/hora no es válido. Asegúrate que la fecha y hora de salida sean mayores a las de entrada.';
+    }
+
     const totalHours = calculateReservationTotalHours(newRes.startDate, newRes.startTime, newRes.endDate, newRes.endTime);
     if (totalHours <= 0) {
       return 'El total de horas ocupadas debe ser mayor a cero con la fecha y hora combinadas.';
@@ -325,6 +329,11 @@ export function Reservations() {
     const totalAmount = Number(newRes.totalAmount ?? 0);
 
     const calculatedTotalHours = calculateReservationTotalHours(newRes.startDate, newRes.startTime || '08:00', newRes.endDate, newRes.endTime || '17:00');
+
+    if (calculatedTotalHours <= 0) {
+      setFormError('El rango de fecha/hora no es válido o no genera horas positivas.');
+      return;
+    }
 
     const reservationPayload = {
       clientId,
