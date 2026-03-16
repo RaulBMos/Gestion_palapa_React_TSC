@@ -43,6 +43,7 @@ export function Reservations() {
     email: '',
     phone: ''
   });
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar');
   const [listTab, setListTab] = useState<'active' | 'history'>('active');
@@ -179,7 +180,8 @@ export function Reservations() {
     }
   };
 
-  const handleDateClick = (dateStr: string) => {
+  const handleDateClick = (dateStr: string, e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
     if (!isAdmin) return;
     let updatedRes = { ...newRes };
     if (!updatedRes.startDate || (updatedRes.startDate && updatedRes.endDate) || dateStr < updatedRes.startDate) {
@@ -191,29 +193,69 @@ export function Reservations() {
     setNewRes(updatedRes);
   };
 
-  const handleSubmit = async (e?: React.MouseEvent) => {
-    if (e) e.preventDefault();
-    console.log('handleSubmit called', { newRes, isNewClient, newClientData, editingId });
+  const validateForm = () => {
+    if (!newRes.startDate || !newRes.endDate) {
+      return 'Debe seleccionar fecha de entrada y salida.';
+    }
+
+    if (!newRes.cabinCount || newRes.cabinCount < 1) {
+      return 'Debe ingresar la cantidad de cabañas (mínimo 1).';
+    }
+
+    if (!newRes.adults || newRes.adults < 1) {
+      return 'Debe ingresar la cantidad de adultos (mínimo 1).';
+    }
+
+    if (newRes.children === undefined || newRes.children < 0) {
+      return 'Debe ingresar la cantidad de niños (0 o más).';
+    }
+
+    if (!newRes.totalAmount || Number(newRes.totalAmount) < 0) {
+      return 'Debe ingresar el total de la reserva.';
+    }
+
+    if (isNewClient) {
+      if (!newClientData.name || !newClientData.email || !newClientData.phone) {
+        return 'Debe completar los datos del cliente nuevo.';
+      }
+    } else {
+      if (!newRes.clientId) {
+        return 'Debe seleccionar el cliente de la reserva.';
+      }
+    }
+
+    return null;
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setFormError(null);
+
+    const validationError = validateForm();
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
 
     let clientId = newRes.clientId || 'temp_client';
 
-    if (isNewClient && newClientData.name && newClientData.email && newClientData.phone) {
+    if (isNewClient) {
       try {
         const createdClient = await addClient({
           name: newClientData.name,
           email: newClientData.email,
-          phone: newClientData.phone
+          phone: newClientData.phone,
         });
         clientId = createdClient.id;
-        console.log('Client created:', clientId);
       } catch (err) {
         console.error('Error creating client:', err);
+        setFormError('No fue posible crear el cliente. Intente nuevamente.');
+        return;
       }
     }
 
-    const reservationData: Reservation = {
-      id: editingId || `reservation_${Date.now()}`,
-      clientId: clientId,
+    const reservationPayload = {
+      clientId,
       cabinCount: newRes.cabinCount ?? 1,
       startDate: newRes.startDate || getDateString(new Date()),
       endDate: newRes.endDate || getDateString(new Date()),
@@ -221,26 +263,32 @@ export function Reservations() {
       children: newRes.children ?? 0,
       totalAmount: Number(newRes.totalAmount) || 0,
       status: newRes.status || ReservationStatus.INFORMATION,
-      isArchived: newRes.isArchived || false
+      isArchived: newRes.isArchived || false,
     };
-
-    console.log('Saving reservation:', reservationData);
 
     try {
       if (editingId) {
-        await editReservation(reservationData);
+        await editReservation({ id: editingId, ...reservationPayload });
       } else {
-        await addReservation(reservationData);
+        await addReservation(reservationPayload);
       }
-      console.log('Reservation saved successfully');
+      setShowForm(false);
+      setEditingId(null);
+      setIsNewClient(false);
+      setNewClientData({ name: '', email: '', phone: '' });
+      setNewRes({
+        status: ReservationStatus.INFORMATION,
+        adults: undefined,
+        children: undefined,
+        cabinCount: undefined,
+        totalAmount: undefined,
+        startDate: undefined,
+        endDate: undefined,
+      });
     } catch (err) {
       console.error('Error saving reservation:', err);
+      setFormError('Error guardando la reserva. Verifique los datos e intente nuevamente.');
     }
-
-    setShowForm(false);
-    setEditingId(null);
-    setIsNewClient(false);
-    setNewClientData({ name: '', email: '', phone: '' });
   };
 
   const changeMonth = (setter: React.Dispatch<React.SetStateAction<Date>>, current: Date, increment: number) => {
@@ -272,7 +320,7 @@ export function Reservations() {
     }
   };
 
-  const renderCalendarGrid = (baseDate: Date, onDateSelect: (dateStr: string) => void, mode: 'main' | 'picker') => {
+  const renderCalendarGrid = (baseDate: Date, onDateSelect: (dateStr: string, e?: React.MouseEvent) => void, mode: 'main' | 'picker') => {
     const days = getDaysInMonth(baseDate);
     return (
       <div className="grid grid-cols-7 auto-rows-fr gap-1 p-2">
@@ -303,7 +351,7 @@ export function Reservations() {
           return (
             <button
               key={dateStr}
-              onClick={() => onDateSelect(dateStr)}
+              onClick={(e) => onDateSelect(dateStr, e)}
               className={`aspect-square rounded-lg flex flex-col items-center justify-center transition-all border ${bgColor} ${mode === 'picker' ? 'h-10' : ''}`}
             >
               <span className="text-xs font-bold">{date.getDate()}</span>
@@ -413,7 +461,12 @@ export function Reservations() {
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{editingId ? 'Actualizar Reserva' : 'Nueva Reserva'}</h3>
               <button onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full"><X className="w-6 h-6 text-gray-400" /></button>
             </div>
-            <form className="space-y-6">
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              {formError && (
+                <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-red-700 text-sm">
+                  {formError}
+                </div>
+              )}
               {/* Selector de cliente */}
               <div>
                 <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Cliente</label>
@@ -537,7 +590,7 @@ export function Reservations() {
                     <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="hidden sm:inline">Eliminar</span>
                   </button>
                 )}
-                <button type="button" onClick={handleSubmit} className={`${editingId ? 'flex-1' : 'w-full'} py-3 sm:py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 text-sm sm:text-base`}>
+                <button type="submit" className={`${editingId ? 'flex-1' : 'w-full'} py-3 sm:py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-xl shadow-indigo-100 transition-all hover:bg-indigo-700 text-sm sm:text-base`}>
                   {editingId ? 'Actualizar Reserva' : 'Confirmar Reserva'}
                 </button>
               </div>
