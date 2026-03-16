@@ -5,6 +5,7 @@
  */
 
 import { getSupabaseClient } from '../config/supabase';
+import { calculateReservationTotalHours } from '@/utils/calculations';
 import type {
     Client,
     Reservation,
@@ -361,14 +362,25 @@ export async function createReservation(reservation: Omit<Reservation, 'id'>): P
 
         validateReservationDatesAndTimes(reservation);
 
+        const normalizedStartTime = reservation.startTime || '08:00';
+        const normalizedEndTime = reservation.endTime || '17:00';
+        const computedTotalHours = calculateReservationTotalHours(
+            reservation.startDate,
+            normalizedStartTime,
+            reservation.endDate,
+            normalizedEndTime
+        );
+
         const insertData: InsertReservation = {
             client_id: reservation.clientId,
             cabin_count: reservation.cabinCount,
             start_date: reservation.startDate,
             end_date: reservation.endDate,
-            start_time: reservation.startTime || '08:00:00',
-            end_time: reservation.endTime || '17:00:00',
-            total_hours: reservation.totalHours || 0,
+            start_time: normalizedStartTime,
+            end_time: normalizedEndTime,
+            total_hours: (reservation.totalHours && reservation.totalHours > 0)
+                ? reservation.totalHours
+                : computedTotalHours,
             adults: reservation.adults,
             children: reservation.children,
             total_amount: reservation.totalAmount,
@@ -412,14 +424,25 @@ export async function updateReservation(reservation: Reservation): Promise<Reser
 
         validateReservationDatesAndTimes(reservation);
 
+        const normalizedStartTime = reservation.startTime || '08:00';
+        const normalizedEndTime = reservation.endTime || '17:00';
+        const computedTotalHours = calculateReservationTotalHours(
+            reservation.startDate,
+            normalizedStartTime,
+            reservation.endDate,
+            normalizedEndTime
+        );
+
         const updateData: UpdateReservation = {
             client_id: reservation.clientId,
             cabin_count: reservation.cabinCount,
             start_date: reservation.startDate,
             end_date: reservation.endDate,
-            start_time: reservation.startTime,
-            end_time: reservation.endTime,
-            total_hours: reservation.totalHours,
+            start_time: normalizedStartTime,
+            end_time: normalizedEndTime,
+            total_hours: (reservation.totalHours && reservation.totalHours > 0)
+                ? reservation.totalHours
+                : computedTotalHours,
             adults: reservation.adults,
             children: reservation.children,
             total_amount: reservation.totalAmount,

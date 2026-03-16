@@ -13,6 +13,7 @@ import type {
     Transaction,
     TransactionType,
 } from '../types';
+import { calculateReservationTotalHours } from '@/utils/calculations';
 import { isSupabaseEnabled, getSupabaseClient } from '../config/supabase';
 import * as SupabaseService from './supabaseService';
 import { logError, logInfo, logWarning } from '../utils/logger';
@@ -336,21 +337,27 @@ const mapDbClientToClient = (client: DbClient): Client => ({
     notes: client.notes ?? undefined,
 });
 
-const mapDbReservationToReservation = (row: DbReservation): Reservation => ({
-    id: row.id,
-    clientId: row.client_id,
-    cabinCount: row.cabin_count,
-    startDate: row.start_date,
-    endDate: row.end_date,
-    startTime: row.start_time || '08:00',
-    endTime: row.end_time || '17:00',
-    totalHours: row.total_hours ?? 0,
-    adults: row.adults,
-    children: row.children,
-    totalAmount: row.total_amount,
-    status: row.status as ReservationStatus,
-    isArchived: typeof row.is_archived === 'boolean' ? row.is_archived : undefined,
-});
+const mapDbReservationToReservation = (row: DbReservation): Reservation => {
+    const startTime = row.start_time ? row.start_time.slice(0, 5) : '08:00';
+    const endTime = row.end_time ? row.end_time.slice(0, 5) : '17:00';
+    const computedHours = calculateReservationTotalHours(row.start_date, startTime, row.end_date, endTime);
+
+    return {
+        id: row.id,
+        clientId: row.client_id,
+        cabinCount: row.cabin_count,
+        startDate: row.start_date,
+        endDate: row.end_date,
+        startTime,
+        endTime,
+        totalHours: row.total_hours && row.total_hours > 0 ? row.total_hours : computedHours,
+        adults: row.adults,
+        children: row.children,
+        totalAmount: row.total_amount,
+        status: row.status as ReservationStatus,
+        isArchived: typeof row.is_archived === 'boolean' ? row.is_archived : undefined,
+    };
+};
 
 const mapDbTransactionToTransaction = (row: DbTransaction): Transaction => ({
     id: row.id,

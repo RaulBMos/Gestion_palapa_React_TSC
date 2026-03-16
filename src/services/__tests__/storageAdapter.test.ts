@@ -354,6 +354,22 @@ describe('StorageAdapter', () => {
         expect(supabaseClient.from).toHaveBeenCalledWith('reservations');
     });
 
+    it('recalculates totalHours when DB total_hours is missing or zero', async () => {
+        vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
+        const dbRow = {
+            ...toDbReservationRow(MOCK_RESERVATION_1),
+            total_hours: 0,
+            start_time: '08:00:00',
+            end_time: '17:00:00',
+        };
+        const supabaseClient = createSupabaseClientMock({ data: [dbRow] });
+        vi.mocked(SupabaseConfig.getSupabaseClient).mockReturnValue(supabaseClient);
+
+        const { data } = await StorageAdapter.getReservations();
+
+        expect(data[0]?.totalHours).toBe(57);
+    });
+
     it('falls back to local reservations when Supabase paginated query fails', async () => {
         vi.mocked(SupabaseConfig.isSupabaseEnabled).mockReturnValue(true);
         const supabaseClient = createSupabaseClientMock({

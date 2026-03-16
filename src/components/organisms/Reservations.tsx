@@ -136,11 +136,15 @@ export function Reservations() {
   // Actions
   const handleEditClick = (res: Reservation) => {
     if (!isAdmin) return;
+    const startTime = res.startTime || '08:00';
+    const endTime = res.endTime || '17:00';
+    const recalculatedTotalHours = calculateReservationTotalHours(res.startDate, startTime, res.endDate, endTime);
+
     setNewRes({
       ...res,
-      startTime: res.startTime || '08:00',
-      endTime: res.endTime || '17:00',
-      totalHours: res.totalHours ?? calculateReservationTotalHours(res.startDate, res.startTime || '08:00', res.endDate, res.endTime || '17:00'),
+      startTime,
+      endTime,
+      totalHours: recalculatedTotalHours,
     });
     setEditingId(res.id);
     setIsNewClient(false);
