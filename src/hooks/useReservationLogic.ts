@@ -74,7 +74,10 @@ export const useReservationLogic = (
     status: ReservationStatus.INFORMATION,
     adults: 2,
     children: 0,
-    cabinCount: 1
+    cabinCount: 1,
+    startTime: '08:00',
+    endTime: '17:00',
+    totalHours: 9,
   });
 
   // --- Helper Functions ---
@@ -171,7 +174,10 @@ export const useReservationLogic = (
       cabinCount: 1,
       totalAmount: 0,
       startDate: todayStr,
-      endDate: ''
+      endDate: '',
+      startTime: '08:00',
+      endTime: '17:00',
+      totalHours: 9,
     });
     setEditingId(null);
     setPickerMonth(today);
@@ -203,6 +209,9 @@ export const useReservationLogic = (
         cabinCount: newRes.cabinCount,
         startDate: newRes.startDate,
         endDate: newRes.endDate,
+        startTime: newRes.startTime || '08:00',
+        endTime: newRes.endTime || '17:00',
+        totalHours: newRes.totalHours ?? 0,
         adults: newRes.adults || 1,
         children: newRes.children || 0,
         totalAmount: Number(newRes.totalAmount),

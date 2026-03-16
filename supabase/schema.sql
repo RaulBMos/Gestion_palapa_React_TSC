@@ -39,6 +39,9 @@ CREATE TABLE IF NOT EXISTS reservations (
   cabin_count INTEGER NOT NULL CHECK (cabin_count >= 0 AND cabin_count <= 20),
   start_date DATE NOT NULL,
   end_date DATE NOT NULL CHECK (end_date >= start_date),
+  start_time TIME NOT NULL DEFAULT '08:00:00',
+  end_time TIME NOT NULL DEFAULT '17:00:00',
+  total_hours NUMERIC(5, 2) NOT NULL DEFAULT 0 CHECK (total_hours >= 0),
   adults INTEGER NOT NULL DEFAULT 1 CHECK (adults >= 0),
   children INTEGER NOT NULL DEFAULT 0 CHECK (children >= 0),
   total_amount NUMERIC(10, 2) NOT NULL CHECK (total_amount >= 0),
@@ -56,10 +59,12 @@ CREATE TABLE IF NOT EXISTS reservations (
   CONSTRAINT reservations_check CHECK (
     cabin_count >= 0 AND cabin_count <= 20 AND
     end_date >= start_date AND
+    start_time < end_time AND
     adults >= 0 AND
     children >= 0 AND
     (adults + children) > 0 AND
     total_amount >= 0 AND
+    total_hours >= 0 AND
     status IN ('Información', 'Confirmada', 'Completada', 'Cancelada')
   )
 );

@@ -62,7 +62,10 @@ export function Reservations() {
     adults: undefined,
     children: undefined,
     cabinCount: undefined,
-    totalAmount: undefined
+    totalAmount: undefined,
+    startTime: '08:00',
+    endTime: '17:00',
+    totalHours: 9,
   });
 
   // Helpers
@@ -88,6 +91,28 @@ export function Reservations() {
     }
     const date = new Date(year, month - 1, day);
     return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+  };
+
+  const formatTimeForDisplay = (timeStr: string | undefined) => {
+    if (!timeStr) return '-';
+    const [hourStr, minuteStr] = timeStr.split(':');
+    const hour = Number(hourStr);
+    const minute = Number(minuteStr);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return timeStr;
+    const date = new Date();
+    date.setHours(hour, minute, 0, 0);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  };
+
+  const calculateTotalHours = (startTime: string, endTime: string) => {
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    if (![sh, sm, eh, em].every(n => Number.isFinite(n))) return 0;
+    const start = new Date(0, 0, 0, sh, sm, 0, 0);
+    const end = new Date(0, 0, 0, eh, em, 0, 0);
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs <= 0) return 0;
+    return Number((diffMs / (1000 * 60 * 60)).toFixed(2));
   };
 
   const getDaysInMonth = (date: Date) => {
@@ -121,7 +146,12 @@ export function Reservations() {
   // Actions
   const handleEditClick = (res: Reservation) => {
     if (!isAdmin) return;
-    setNewRes({ ...res });
+    setNewRes({
+      ...res,
+      startTime: res.startTime || '08:00',
+      endTime: res.endTime || '17:00',
+      totalHours: res.totalHours ?? calculateTotalHours(res.startTime || '08:00', res.endTime || '17:00'),
+    });
     setEditingId(res.id);
     setIsNewClient(false);
     setNewClientData({ name: '', email: '', phone: '' });
@@ -145,7 +175,10 @@ export function Reservations() {
       cabinCount: undefined,
       totalAmount: undefined,
       startDate: todayStr,
-      endDate: ''
+      endDate: '',
+      startTime: '08:00',
+      endTime: '17:00',
+      totalHours: 9,
     });
     setEditingId(null);
     setPickerMonth(today);
@@ -198,6 +231,10 @@ export function Reservations() {
       return 'Debe seleccionar fecha de entrada y salida.';
     }
 
+    if (!newRes.startTime || !newRes.endTime) {
+      return 'Debe seleccionar hora de entrada y hora de salida.';
+    }
+
     const start = new Date(newRes.startDate);
     const end = new Date(newRes.endDate);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
@@ -206,6 +243,15 @@ export function Reservations() {
 
     if (end < start) {
       return 'La fecha de salida debe ser igual o mayor a la fecha de entrada.';
+    }
+
+    const totalHours = calculateTotalHours(newRes.startTime, newRes.endTime);
+    if (totalHours <= 0) {
+      return 'El horario de salida debe ser mayor al horario de entrada.';
+    }
+
+    if (newRes.totalHours !== undefined && Math.abs((newRes.totalHours || 0) - totalHours) > 0.01) {
+      return 'El total de horas ocupadas no coincide con el rango horario.';
     }
 
     if (!Number.isFinite(Number(newRes.cabinCount)) || (newRes.cabinCount ?? 0) < 0) {
@@ -278,11 +324,16 @@ export function Reservations() {
     const children = Number(newRes.children ?? 0);
     const totalAmount = Number(newRes.totalAmount ?? 0);
 
+    const calculatedTotalHours = newRes.startTime && newRes.endTime ? calculateTotalHours(newRes.startTime, newRes.endTime) : 0;
+
     const reservationPayload = {
       clientId,
       cabinCount: Number.isFinite(cabinCount) ? Math.max(1, Math.min(20, Math.trunc(cabinCount))) : 1,
       startDate: newRes.startDate || getDateString(new Date()),
       endDate: newRes.endDate || getDateString(new Date()),
+      startTime: newRes.startTime || '08:00',
+      endTime: newRes.endTime || '17:00',
+      totalHours: newRes.totalHours ?? calculatedTotalHours,
       adults: Number.isFinite(adults) ? Math.max(1, Math.trunc(adults)) : 1,
       children: Number.isFinite(children) ? Math.max(0, Math.trunc(children)) : 0,
       totalAmount: Number.isFinite(totalAmount) ? Number(totalAmount.toFixed(2)) : 0,
@@ -308,6 +359,9 @@ export function Reservations() {
         totalAmount: undefined,
         startDate: undefined,
         endDate: undefined,
+        startTime: '08:00',
+        endTime: '17:00',
+        totalHours: 9,
       });
     } catch (err) {
       console.error('Error saving reservation:', err);
@@ -443,6 +497,8 @@ export function Reservations() {
                   <div className="flex gap-4 text-sm">
                     <div><p className="text-gray-400 dark:text-gray-500 text-xs">Cabañas</p><p className="font-bold dark:text-white">{res.cabinCount}</p></div>
                     <div><p className="text-gray-400 dark:text-gray-500 text-xs">Pax</p><p className="font-bold dark:text-white">{res.adults + res.children}</p></div>
+                    <div><p className="text-gray-400 dark:text-gray-500 text-xs">Horario</p><p className="font-bold dark:text-white">{formatTimeForDisplay(res.startTime)} - {formatTimeForDisplay(res.endTime)}</p></div>
+                    <div><p className="text-gray-400 dark:text-gray-500 text-xs">Horas</p><p className="font-bold dark:text-white">{res.totalHours?.toFixed(2) ?? '0.00'} h</p></div>
                     <div><p className="text-gray-400 dark:text-gray-500 text-xs">Total</p><p className="font-bold text-indigo-600 dark:text-indigo-400 font-mono">${res.totalAmount}</p></div>
                   </div>
                   {isAdmin && (
@@ -600,6 +656,31 @@ export function Reservations() {
                 <div>
                   <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Niños</label>
                   <input type="number" min="0" placeholder="0" className="w-full mt-2 p-2 sm:p-4 bg-gray-50 dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-2xl font-bold text-sm sm:text-base text-gray-900 dark:text-white" value={newRes.children ?? ''} onChange={e => setNewRes({ ...newRes, children: e.target.value ? Number(e.target.value) : undefined })} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Horario entrada</label>
+                  <input type="time" step="1800" className="w-full mt-2 p-2 sm:p-4 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-600 rounded-2xl font-bold text-sm sm:text-base text-gray-900 dark:text-white" value={newRes.startTime || '08:00'} onChange={e => {
+                    const startTime = e.target.value;
+                    const endTime = newRes.endTime || '17:00';
+                    const totalHours = calculateTotalHours(startTime, endTime);
+                    setNewRes({ ...newRes, startTime, totalHours });
+                  }} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Horario salida</label>
+                  <input type="time" step="1800" className="w-full mt-2 p-2 sm:p-4 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-600 rounded-2xl font-bold text-sm sm:text-base text-gray-900 dark:text-white" value={newRes.endTime || '17:00'} onChange={e => {
+                    const endTime = e.target.value;
+                    const startTime = newRes.startTime || '08:00';
+                    const totalHours = calculateTotalHours(startTime, endTime);
+                    setNewRes({ ...newRes, endTime, totalHours });
+                  }} />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">Total horas</label>
+                  <input type="number" step="0.5" min="0" className="w-full mt-2 p-2 sm:p-4 bg-gray-50 dark:bg-slate-700 border border-gray-100 dark:border-slate-600 rounded-2xl font-bold text-sm sm:text-base text-gray-900 dark:text-white" value={newRes.totalHours ?? 0} readOnly />
                 </div>
               </div>
 

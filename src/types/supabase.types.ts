@@ -61,6 +61,9 @@ export interface Database {
                     cabin_count: number;
                     start_date: string;
                     end_date: string;
+                    start_time: string;
+                    end_time: string;
+                    total_hours: number;
                     adults: number;
                     children: number;
                     total_amount: number;
@@ -78,6 +81,9 @@ export interface Database {
                     cabin_count: number;
                     start_date: string;
                     end_date: string;
+                    start_time?: string;
+                    end_time?: string;
+                    total_hours?: number;
                     adults?: number;
                     children?: number;
                     total_amount: number;
@@ -95,6 +101,9 @@ export interface Database {
                     cabin_count?: number;
                     start_date?: string;
                     end_date?: string;
+                    start_time?: string;
+                    end_time?: string;
+                    total_hours?: number;
                     adults?: number;
                     children?: number;
                     total_amount?: number;

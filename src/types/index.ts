@@ -31,6 +31,9 @@ export interface Reservation {
   cabinCount: number; // Changed from specific ID to quantity
   startDate: string; // ISO Date string
   endDate: string; // ISO Date string
+  startTime: string; // HH:MM AM/PM converted to 24h for storage and API
+  endTime: string;
+  totalHours: number;
   adults: number; // Adults and Children > 5
   children: number; // Children < 5
   totalAmount: number;
@@ -194,6 +197,9 @@ export interface NewReservation {
   cabinCount?: number;
   startDate?: string;
   endDate?: string;
+  startTime?: string;
+  endTime?: string;
+  totalHours?: number;
   status?: ReservationStatus;
   totalAmount?: number;
   adults?: number;
