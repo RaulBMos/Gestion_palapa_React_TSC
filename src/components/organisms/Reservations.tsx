@@ -208,8 +208,8 @@ export function Reservations() {
       return 'La fecha de salida debe ser igual o mayor a la fecha de entrada.';
     }
 
-    if (!Number.isFinite(Number(newRes.cabinCount)) || (newRes.cabinCount ?? 0) < 1) {
-      return 'Debe ingresar la cantidad de cabañas (mínimo 1).';
+    if (!Number.isFinite(Number(newRes.cabinCount)) || (newRes.cabinCount ?? 0) < 0) {
+      return 'Debe ingresar la cantidad de cabañas (0 a 20).';
     }
 
     if ((newRes.cabinCount ?? 0) > 20) {

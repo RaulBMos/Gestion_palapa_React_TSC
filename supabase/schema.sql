@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS clients (
 CREATE TABLE IF NOT EXISTS reservations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   client_id UUID NOT NULL REFERENCES clients(id) ON DELETE RESTRICT,
-  cabin_count INTEGER NOT NULL CHECK (cabin_count > 0 AND cabin_count <= 20),
+  cabin_count INTEGER NOT NULL CHECK (cabin_count >= 0 AND cabin_count <= 20),
   start_date DATE NOT NULL,
   end_date DATE NOT NULL CHECK (end_date >= start_date),
   adults INTEGER NOT NULL DEFAULT 1 CHECK (adults >= 0),
