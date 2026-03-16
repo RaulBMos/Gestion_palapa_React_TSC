@@ -52,9 +52,16 @@ CREATE TABLE IF NOT EXISTS reservations (
   -- Metadata
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   
-  -- Prevent overlapping reservations (business rule)
-  CONSTRAINT valid_date_range CHECK (end_date > start_date),
-  CONSTRAINT valid_guest_count CHECK (adults + children > 0)
+  -- Reservation constraints
+  CONSTRAINT reservations_check CHECK (
+    cabin_count >= 0 AND cabin_count <= 20 AND
+    end_date >= start_date AND
+    adults >= 0 AND
+    children >= 0 AND
+    (adults + children) > 0 AND
+    total_amount >= 0 AND
+    status IN ('Información', 'Confirmada', 'Completada', 'Cancelada')
+  )
 );
 
 -- Transactions Table
