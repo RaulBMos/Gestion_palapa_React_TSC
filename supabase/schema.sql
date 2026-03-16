@@ -59,7 +59,10 @@ CREATE TABLE IF NOT EXISTS reservations (
   CONSTRAINT reservations_check CHECK (
     cabin_count >= 0 AND cabin_count <= 20 AND
     end_date >= start_date AND
-    start_time < end_time AND
+    (
+      start_date < end_date OR
+      (start_date = end_date AND end_time > start_time)
+    ) AND
     adults >= 0 AND
     children >= 0 AND
     (adults + children) > 0 AND

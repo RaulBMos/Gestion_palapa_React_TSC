@@ -104,14 +104,21 @@ export function Reservations() {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
-  const calculateTotalHours = (startTime: string, endTime: string) => {
-    const [sh, sm] = startTime.split(':').map(Number);
-    const [eh, em] = endTime.split(':').map(Number);
-    if (![sh, sm, eh, em].every(n => Number.isFinite(n))) return 0;
-    const start = new Date(0, 0, 0, sh, sm, 0, 0);
-    const end = new Date(0, 0, 0, eh, em, 0, 0);
+  const calculateTotalHours = (startDate: string | undefined, startTime: string, endDate: string | undefined, endTime: string) => {
+    if (!startDate || !endDate) return 0;
+
+    const [sy, sm, sd] = startDate.split('-').map(Number);
+    const [eh, em] = endDate.split('-').map(Number);
+    const [sh, smin] = startTime.split(':').map(Number);
+    const [ehh, eem] = endTime.split(':').map(Number);
+
+    if (![sy, sm, sd, eh, em, ehh, eem, sh, smin].every(n => Number.isFinite(n))) return 0;
+
+    const start = new Date(sy, sm - 1, sd, sh, smin, 0, 0);
+    const end = new Date(eh, em - 1, ehh, eem, 0, 0);
     const diffMs = end.getTime() - start.getTime();
-    if (diffMs <= 0) return 0;
+    if (diffMs < 0) return 0;
+
     return Number((diffMs / (1000 * 60 * 60)).toFixed(2));
   };
 
@@ -245,13 +252,13 @@ export function Reservations() {
       return 'La fecha de salida debe ser igual o mayor a la fecha de entrada.';
     }
 
-    const totalHours = calculateTotalHours(newRes.startTime, newRes.endTime);
+    const totalHours = calculateTotalHours(newRes.startDate, newRes.startTime, newRes.endDate, newRes.endTime);
     if (totalHours <= 0) {
-      return 'El horario de salida debe ser mayor al horario de entrada.';
+      return 'El total de horas ocupadas debe ser mayor a cero con la fecha y hora combinadas.';
     }
 
     if (newRes.totalHours !== undefined && Math.abs((newRes.totalHours || 0) - totalHours) > 0.01) {
-      return 'El total de horas ocupadas no coincide con el rango horario.';
+      return 'El total de horas ocupadas no coincide con el rango fecha/hora.';
     }
 
     if (!Number.isFinite(Number(newRes.cabinCount)) || (newRes.cabinCount ?? 0) < 0) {
@@ -324,7 +331,7 @@ export function Reservations() {
     const children = Number(newRes.children ?? 0);
     const totalAmount = Number(newRes.totalAmount ?? 0);
 
-    const calculatedTotalHours = newRes.startTime && newRes.endTime ? calculateTotalHours(newRes.startTime, newRes.endTime) : 0;
+    const calculatedTotalHours = calculateTotalHours(newRes.startDate, newRes.startTime || '08:00', newRes.endDate, newRes.endTime || '17:00');
 
     const reservationPayload = {
       clientId,
@@ -333,7 +340,7 @@ export function Reservations() {
       endDate: newRes.endDate || getDateString(new Date()),
       startTime: newRes.startTime || '08:00',
       endTime: newRes.endTime || '17:00',
-      totalHours: newRes.totalHours ?? calculatedTotalHours,
+      totalHours: calculatedTotalHours,
       adults: Number.isFinite(adults) ? Math.max(1, Math.trunc(adults)) : 1,
       children: Number.isFinite(children) ? Math.max(0, Math.trunc(children)) : 0,
       totalAmount: Number.isFinite(totalAmount) ? Number(totalAmount.toFixed(2)) : 0,
