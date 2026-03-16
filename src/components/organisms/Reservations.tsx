@@ -198,20 +198,39 @@ export function Reservations() {
       return 'Debe seleccionar fecha de entrada y salida.';
     }
 
-    if (!newRes.cabinCount || newRes.cabinCount < 1) {
+    const start = new Date(newRes.startDate);
+    const end = new Date(newRes.endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return 'Las fechas tienen un formato inválido.';
+    }
+
+    if (end <= start) {
+      return 'La fecha de salida debe ser mayor a la fecha de entrada.';
+    }
+
+    if (!Number.isFinite(Number(newRes.cabinCount)) || (newRes.cabinCount ?? 0) < 1) {
       return 'Debe ingresar la cantidad de cabañas (mínimo 1).';
     }
 
-    if (!newRes.adults || newRes.adults < 1) {
+    if ((newRes.cabinCount ?? 0) > 20) {
+      return 'La cantidad de cabañas no puede superar 20.';
+    }
+
+    if (!Number.isFinite(Number(newRes.adults)) || (newRes.adults ?? 0) < 1) {
       return 'Debe ingresar la cantidad de adultos (mínimo 1).';
     }
 
-    if (newRes.children === undefined || newRes.children < 0) {
+    if (!Number.isFinite(Number(newRes.children)) || (newRes.children ?? 0) < 0) {
       return 'Debe ingresar la cantidad de niños (0 o más).';
     }
 
-    if (!newRes.totalAmount || Number(newRes.totalAmount) < 0) {
-      return 'Debe ingresar el total de la reserva.';
+    const totalPeople = (newRes.adults ?? 0) + (newRes.children ?? 0);
+    if (totalPeople <= 0) {
+      return 'El número de personas debe ser mayor a 0.';
+    }
+
+    if (!Number.isFinite(Number(newRes.totalAmount)) || (Number(newRes.totalAmount) || 0) < 0) {
+      return 'Debe ingresar un monto total válido (>= 0).';
     }
 
     if (isNewClient) {
@@ -254,14 +273,19 @@ export function Reservations() {
       }
     }
 
+    const cabinCount = Number(newRes.cabinCount ?? 1);
+    const adults = Number(newRes.adults ?? 1);
+    const children = Number(newRes.children ?? 0);
+    const totalAmount = Number(newRes.totalAmount ?? 0);
+
     const reservationPayload = {
       clientId,
-      cabinCount: newRes.cabinCount ?? 1,
+      cabinCount: Number.isFinite(cabinCount) ? Math.max(1, Math.min(20, Math.trunc(cabinCount))) : 1,
       startDate: newRes.startDate || getDateString(new Date()),
       endDate: newRes.endDate || getDateString(new Date()),
-      adults: newRes.adults ?? 1,
-      children: newRes.children ?? 0,
-      totalAmount: Number(newRes.totalAmount) || 0,
+      adults: Number.isFinite(adults) ? Math.max(1, Math.trunc(adults)) : 1,
+      children: Number.isFinite(children) ? Math.max(0, Math.trunc(children)) : 0,
+      totalAmount: Number.isFinite(totalAmount) ? Number(totalAmount.toFixed(2)) : 0,
       status: newRes.status || ReservationStatus.INFORMATION,
       isArchived: newRes.isArchived || false,
     };
