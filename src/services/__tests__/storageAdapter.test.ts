@@ -125,6 +125,9 @@ const toDbReservationRow = (reservation: Reservation) => ({
     cabin_count: reservation.cabinCount,
     start_date: reservation.startDate,
     end_date: reservation.endDate,
+    start_time: reservation.startTime,
+    end_time: reservation.endTime,
+    total_hours: reservation.totalHours,
     adults: reservation.adults,
     children: reservation.children,
     total_amount: reservation.totalAmount,
@@ -133,6 +136,7 @@ const toDbReservationRow = (reservation: Reservation) => ({
 });
 
 const toDbTransactionRow = (transaction: Transaction) => ({
+
     id: transaction.id,
     date: transaction.date,
     amount: transaction.amount,
@@ -344,6 +348,9 @@ describe('StorageAdapter', () => {
         const { data } = await StorageAdapter.getReservations();
 
         expect(data).toEqual(MOCK_RESERVATIONS);
+        expect(data[0]?.startTime).toBe(MOCK_RESERVATIONS[0].startTime);
+        expect(data[0]?.endTime).toBe(MOCK_RESERVATIONS[0].endTime);
+        expect(data[0]?.totalHours).toBe(MOCK_RESERVATIONS[0].totalHours);
         expect(supabaseClient.from).toHaveBeenCalledWith('reservations');
     });
 
