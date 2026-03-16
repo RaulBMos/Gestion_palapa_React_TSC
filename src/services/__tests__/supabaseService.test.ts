@@ -99,6 +99,25 @@ describe('SupabaseService', () => {
         expect(result.id).toBe(MOCK_CLIENT_1.id);
     });
 
+    it('should return existing client when email is duplicate', async () => {
+        // First insert attempt fails with unique constraint violation
+        const dupError = { message: 'duplicate key value violates unique constraint "clients_email_key"', code: '23505' };
+        const insertMock = createSupabaseQueryMock({ data: null, error: dupError });
+
+        // Next fetch attempt returns existing client
+        const fetchMock = createSupabaseQueryMock({ data: DB_CLIENT_1 });
+
+        // Simulate from().insert(...).select().single() then from().select().eq().single()
+        mockSupabase.from
+            .mockReturnValueOnce(insertMock)
+            .mockReturnValueOnce(fetchMock);
+
+        const result = await createClient(MOCK_CLIENT_1);
+
+        expect(result.id).toBe(MOCK_CLIENT_1.id);
+        expect(result.email).toBe(MOCK_CLIENT_1.email);
+    });
+
     it('should fetch and map reservations', async () => {
         mockSupabase.from.mockReturnValue(createSupabaseQueryMock({ data: [DB_RESERVATION_1] }));
         const result = await fetchReservations();

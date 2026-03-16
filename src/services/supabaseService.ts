@@ -210,6 +210,21 @@ export async function createClient(client: Omit<Client, 'id'>): Promise<Client> 
             .single();
 
         if (error) {
+            // Si el email ya existe, tomar el cliente existente y devolverlo.
+            if (error.code === '23505' || error.message?.toLowerCase().includes('duplicate key value')) {
+                const { data: existingClient, error: fetchError } = await supabase
+                    .from('clients')
+                    .select('*')
+                    .eq('email', client.email)
+                    .single();
+
+                if (fetchError || !existingClient) {
+                    throw new SupabaseError('Error fetching existing client after duplicate email', fetchError?.code, fetchError?.details);
+                }
+
+                return mapDbClientToClient(existingClient as DbClient);
+            }
+
             throw new SupabaseError(error.message, error.code, error.details);
         }
 
