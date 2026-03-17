@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateMonthlyOccupancy,
   calculateFinancialBalance,
+  calculateMonthlyFinancialBalance,
   calculateADR,
   calculateAverageStayDuration,
   calculateRevPAR,
@@ -353,6 +354,74 @@ describe('Financial Calculation Utils', () => {
       expect(result.totalExpenses).toBe(678.90);
       expect(result.netProfit).toBeCloseTo(555.66, 2);
       expect(result.profitMargin).toBeCloseTo(45.01, 1);
+    });
+  });
+
+  describe('calculateMonthlyFinancialBalance', () => {
+    it('should return only current month values', () => {
+      const now = new Date(2026, 2, 16); // 16 de marzo 2026
+      const validCurrentMonthTx: Transaction[] = [
+        {
+          id: 'cur-1',
+          date: '2026-03-05',
+          amount: 1000,
+          type: TransactionType.INCOME,
+          category: 'Renta',
+          description: 'Reserva Marzo',
+          paymentMethod: PaymentMethod.TRANSFER,
+        },
+        {
+          id: 'cur-2',
+          date: '2026-03-10',
+          amount: 300,
+          type: TransactionType.EXPENSE,
+          category: 'Limpieza',
+          description: 'Gasto Marzo',
+          paymentMethod: PaymentMethod.CASH,
+        },
+      ];
+      const otherMonthTx: Transaction[] = [
+        {
+          id: 'prev-1',
+          date: '2026-02-25',
+          amount: 500,
+          type: TransactionType.INCOME,
+          category: 'Renta',
+          description: 'Reserva Febrero',
+          paymentMethod: PaymentMethod.TRANSFER,
+        },
+      ];
+
+      const result = calculateMonthlyFinancialBalance(
+        [...validCurrentMonthTx, ...otherMonthTx],
+        now
+      );
+
+      expect(result.totalIncome).toBe(1000);
+      expect(result.totalExpenses).toBe(300);
+      expect(result.netProfit).toBe(700);
+      expect(result.profitMargin).toBeCloseTo(70, 2);
+    });
+
+    it('should return zeros for no matching month', () => {
+      const now = new Date(2026, 2, 16);
+      const allDifferentMonth: Transaction[] = [
+        {
+          id: 'other-1',
+          date: '2025-12-31',
+          amount: 100,
+          type: TransactionType.INCOME,
+          category: 'Renta',
+          description: 'Reserva Dic',
+          paymentMethod: PaymentMethod.CASH,
+        },
+      ];
+
+      const result = calculateMonthlyFinancialBalance(allDifferentMonth, now);
+      expect(result.totalIncome).toBe(0);
+      expect(result.totalExpenses).toBe(0);
+      expect(result.netProfit).toBe(0);
+      expect(result.profitMargin).toBe(0);
     });
   });
 

@@ -87,6 +87,25 @@ export const calculateFinancialBalance = (transactions: Transaction[]) => {
   };
 };
 
+export const calculateMonthlyFinancialBalance = (
+  transactions: Transaction[],
+  referenceDate: Date = new Date()
+) => {
+  const year = referenceDate.getFullYear();
+  const month = referenceDate.getMonth();
+
+  const currentMonthTransactions = transactions.filter((t) => {
+    const transactionDate = new Date(t.date);
+    if (Number.isNaN(transactionDate.getTime())) return false;
+    return (
+      transactionDate.getFullYear() === year &&
+      transactionDate.getMonth() === month
+    );
+  });
+
+  return calculateFinancialBalance(currentMonthTransactions);
+};
+
 /**
  * Calcula el Average Daily Rate (ADR) - tarifa promedio por noche
  * 

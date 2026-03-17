@@ -43,6 +43,12 @@ vi.mock('@/utils/calculations', () => ({
     netProfit: 400,
     profitMargin: 40,
   })),
+  calculateMonthlyFinancialBalance: vi.fn(() => ({
+    totalIncome: 1200,
+    totalExpenses: 500,
+    netProfit: 700,
+    profitMargin: 58.33,
+  })),
 }));
 
 vi.mock('@/utils/transformers', () => ({
@@ -137,10 +143,10 @@ describe('useDashboardLogic', () => {
         useDashboardLogic(mockTransactions, mockReservations, totalCabins)
       );
 
-      expect(result.current.financialBalance.totalIncome).toBe(1000);
-      expect(result.current.financialBalance.totalExpenses).toBe(600);
-      expect(result.current.financialBalance.netProfit).toBe(400);
-      expect(result.current.financialBalance.profitMargin).toBe(40);
+      expect(result.current.financialBalance.totalIncome).toBe(1200);
+      expect(result.current.financialBalance.totalExpenses).toBe(500);
+      expect(result.current.financialBalance.netProfit).toBe(700);
+      expect(result.current.financialBalance.profitMargin).toBe(58.33);
     });
   });
 

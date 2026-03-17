@@ -17,6 +17,7 @@ import { useReservations } from '@/hooks/useReservations';
 import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/contexts/useAuth';
 import { calculateReservationTotalHours, isReservationTimeRangeValid } from '@/utils/calculations';
+import { SupabaseError } from '@/services/supabaseService';
 
 interface NewClientData {
   name: string;
@@ -230,6 +231,36 @@ export function Reservations() {
     setNewRes({ ...updatedRes, totalHours });
   };
 
+  const getFriendlyErrorMessage = (error: unknown): string => {
+    if (error instanceof SupabaseError) {
+      if (error.code === 'VALIDATION_ERROR') {
+        return error.message;
+      }
+
+      const message = (error.message || '').toString();
+
+      if (message.toLowerCase().includes('clients_phone_check')) {
+        return 'El teléfono es inválido (mínimo 10 dígitos).';
+      }
+
+      if (message.toLowerCase().includes('clients_email_key')) {
+        return 'El correo ya existe. Se usará el cliente existente.';
+      }
+
+      if (message.toLowerCase().includes('reservations_check')) {
+        return 'La reserva no cumple las reglas de rango de fecha/hora o capacidad.';
+      }
+
+      return `Error de servidor: ${error.message}`;
+    }
+
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return 'Ha ocurrido un error desconocido. Intente nuevamente.';
+  };
+
   const validateForm = () => {
     if (!newRes.startDate || !newRes.endDate) {
       return 'Debe seleccionar fecha de entrada y salida.';
@@ -291,6 +322,11 @@ export function Reservations() {
       if (!newClientData.name || !newClientData.email || !newClientData.phone) {
         return 'Debe completar los datos del cliente nuevo.';
       }
+
+      const cleanPhone = newClientData.phone.replace(/[^0-9]/g, '');
+      if (cleanPhone.length < 10) {
+        return 'El teléfono debe tener al menos 10 dígitos numéricos.';
+      }
     } else {
       if (!newRes.clientId) {
         return 'Debe seleccionar el cliente de la reserva.';
@@ -322,7 +358,7 @@ export function Reservations() {
         clientId = createdClient.id;
       } catch (err) {
         console.error('Error creating client:', err);
-        setFormError('No fue posible crear el cliente. Intente nuevamente.');
+        setFormError(getFriendlyErrorMessage(err));
         return;
       }
     }
@@ -378,7 +414,7 @@ export function Reservations() {
       });
     } catch (err) {
       console.error('Error saving reservation:', err);
-      setFormError('Error guardando la reserva. Verifique los datos e intente nuevamente.');
+      setFormError(getFriendlyErrorMessage(err));
     }
   };
 

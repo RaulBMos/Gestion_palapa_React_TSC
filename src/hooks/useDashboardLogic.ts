@@ -12,7 +12,7 @@ import { analyzeBusinessData } from '@/services/geminiService';
 import { logError, logInfo, logWarning } from '@/utils/logger';
 import {
   calculateMonthlyOccupancy,
-  calculateFinancialBalance,
+  calculateMonthlyFinancialBalance,
   calculateADR,
   calculateAverageStayDuration,
   calculateRevPAR
@@ -68,9 +68,9 @@ export const useDashboardLogic = (
     };
   }, [reservations, totalAvailableCabins]);
 
-  // Calcular balance financiero
+  // Calcular balance financiero (MES ACTUAL)
   const financialBalance = useMemo(() => {
-    return calculateFinancialBalance(transactions);
+    return calculateMonthlyFinancialBalance(transactions);
   }, [transactions]);
 
   // Preparar datos para gráficos - Resumenes mensuales

@@ -196,10 +196,15 @@ export async function createClient(client: Omit<Client, 'id'>): Promise<Client> 
         const supabase = getSupabaseClient();
         const userId = await getUserId();
 
+        const normalizedPhone = client.phone.replace(/[^0-9]/g, '');
+        if (normalizedPhone.length < 10) {
+            throw new SupabaseError('Número de teléfono inválido, requiere al menos 10 dígitos', 'VALIDATION_ERROR');
+        }
+
         const insertData: InsertClient = {
             name: client.name,
             email: client.email,
-            phone: client.phone,
+            phone: normalizedPhone,
             notes: client.notes || null,
             user_id: userId || undefined,
         };

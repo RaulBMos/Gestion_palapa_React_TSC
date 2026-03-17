@@ -118,6 +118,25 @@ describe('SupabaseService', () => {
         expect(result.email).toBe(MOCK_CLIENT_1.email);
     });
 
+    it('should throw validation error for invalid phone', async () => {
+        await expect(createClient({
+            ...MOCK_CLIENT_1,
+            phone: '123',
+        })).rejects.toThrow('Número de teléfono inválido');
+    });
+
+    it('should normalize phone numbers when creating client', async () => {
+        const dbClient = { ...DB_CLIENT_1, phone: '1234567890' };
+        mockSupabase.from.mockReturnValue(createSupabaseQueryMock({ data: dbClient }));
+
+        const result = await createClient({
+            ...MOCK_CLIENT_1,
+            phone: '(123) 456-7890',
+        });
+
+        expect(result.phone).toBe('1234567890');
+    });
+
     it('should fetch and map reservations', async () => {
         mockSupabase.from.mockReturnValue(createSupabaseQueryMock({ data: [DB_RESERVATION_1] }));
         const result = await fetchReservations();
