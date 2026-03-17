@@ -716,6 +716,47 @@ export const StorageAdapter = {
         };
     },
 
+    async getAllTransactions(filters?: Record<string, FilterValue>): Promise<Transaction[]> {
+        if (isSupabaseEnabled()) {
+            try {
+                await ensureSupabaseUser(true);
+                const supabase = getSupabaseClient();
+
+                let query = supabase
+                    .from('transactions')
+                    .select('*')
+                    .is('deleted_at', null)
+                    .order('date', { ascending: false });
+
+                if (filters) {
+                    Object.entries(filters).forEach(([key, value]) => {
+                        if (value === undefined) {
+                            return;
+                        }
+                        query = query.eq(toSnakeCase(key), value as FilterValue);
+                    });
+                }
+
+                const { data, error } = await query;
+                if (error) {
+                    throw new SupabaseService.SupabaseError(error.message, error.code, error.details);
+                }
+
+                const rows = (data ?? []) as DbTransaction[];
+                return rows.map(mapDbTransactionToTransaction);
+            } catch (error) {
+                logWarning('Failed to fetch all transactions from Supabase, falling back to localStorage', {
+                    component: 'storageAdapter',
+                    table: 'transactions',
+                    error,
+                });
+            }
+        }
+
+        const stored = getFromLocalStorage<Transaction>(STORAGE_KEYS.TRANSACTIONS);
+        return applyFiltersToArray(stored, filters);
+    },
+
     async addTransaction(transaction: Omit<Transaction, 'id'>): Promise<Transaction> {
         if (isSupabaseEnabled()) {
             return await SupabaseService.createTransaction(transaction);

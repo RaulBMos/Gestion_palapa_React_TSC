@@ -22,7 +22,7 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
     // ✅ Obtener datos del contexto (o usar props si se proporcionan para retrocompatibilidad)
     const dataState = useDataState();
 
-    const transactions = props.transactions ?? dataState.transactions;
+    const activeTransactions = props.transactions ?? dataState.allTransactions ?? dataState.transactions;
     const reservations = props.reservations ?? dataState.reservations;
     const totalAvailableCabins = props.totalAvailableCabins ?? dataState.totalCabins;
 
@@ -41,7 +41,7 @@ export const Dashboard: React.FC<DashboardProps> = (props) => {
         handleAiAnalysis,
         handleCancelAiAnalysis,
         clearAiError
-    } = useDashboardLogic(transactions, reservations, totalAvailableCabins);
+    } = useDashboardLogic(activeTransactions, reservations, totalAvailableCabins);
 
     const totalIncome = financialBalance.totalIncome;
     const totalExpenses = financialBalance.totalExpenses;

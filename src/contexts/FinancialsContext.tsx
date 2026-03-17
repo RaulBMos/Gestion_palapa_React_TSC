@@ -12,6 +12,7 @@ import { PAGE_SIZE } from './constants/FinancialsContext.constants';
 
 export function FinancialsProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<Transaction[]>([]);
+  const [allData, setAllData] = useState<Transaction[]>([]);
   const [count, setCount] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -38,9 +39,20 @@ export function FinancialsProvider({ children }: { children: React.ReactNode }) 
     }
   }, [currentPage]);
 
+  const refreshAll = useCallback(async () => {
+    try {
+      const allResult = await StorageAdapter.getAllTransactions();
+      setAllData(allResult);
+    } catch (err) {
+      logError(err as Error, { component: 'FinancialsContext', action: 'refreshAll' });
+      throw err;
+    }
+  }, []);
+
   useEffect(() => {
     void fetchPage();
-  }, [fetchPage]);
+    void refreshAll();
+  }, [fetchPage, refreshAll]);
 
   const refresh = useCallback(async () => fetchPage(), [fetchPage]);
 
@@ -48,43 +60,48 @@ export function FinancialsProvider({ children }: { children: React.ReactNode }) 
     try {
       await StorageAdapter.addTransaction(transaction);
       await fetchPage();
+      await refreshAll();
       logInfo('Transaction added through context');
     } catch (err) {
       logError(err as Error, { component: 'FinancialsContext', action: 'addTransaction' });
       throw err;
     }
-  }, [fetchPage]);
+  }, [fetchPage, refreshAll]);
 
   const updateTransaction = useCallback(async (transaction: Transaction) => {
     try {
       await StorageAdapter.updateTransaction(transaction);
       await fetchPage();
+      await refreshAll();
       logInfo('Transaction updated through context', { transactionId: transaction.id });
     } catch (err) {
       logError(err as Error, { component: 'FinancialsContext', action: 'updateTransaction' });
       throw err;
     }
-  }, [fetchPage]);
+  }, [fetchPage, refreshAll]);
 
   const deleteTransaction = useCallback(async (id: string) => {
     try {
       await StorageAdapter.deleteTransaction(id);
       await fetchPage();
+      await refreshAll();
       logInfo('Transaction deleted through context', { transactionId: id });
     } catch (err) {
       logError(err as Error, { component: 'FinancialsContext', action: 'deleteTransaction' });
       throw err;
     }
-  }, [fetchPage]);
+  }, [fetchPage, refreshAll]);
 
   const value = useFinancialsContextValue({
     data,
+    allData,
     count,
     loading,
     error,
     currentPage,
     setCurrentPage,
     refresh,
+    refreshAll,
     addTransaction,
     updateTransaction,
     deleteTransaction,

@@ -5,7 +5,7 @@ import { useFinancials } from '@/hooks/useFinancials';
 export function useDataState() {
   const { data: clients } = useClients();
   const { data: reservations, totalCabins } = useReservations();
-  const { data: transactions } = useFinancials();
+  const { data: transactions, allData: allTransactions } = useFinancials();
 
-  return { clients, reservations, transactions, totalCabins };
+  return { clients, reservations, transactions, allTransactions, totalCabins };
 }
