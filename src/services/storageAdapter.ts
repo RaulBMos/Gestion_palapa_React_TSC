@@ -722,7 +722,7 @@ export const StorageAdapter = {
                 await ensureSupabaseUser(true);
                 const supabase = getSupabaseClient();
 
-                let query = supabase
+                let query: unknown = supabase
                     .from('transactions')
                     .select('*')
                     .is('deleted_at', null)
